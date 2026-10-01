@@ -726,3 +726,569 @@ function handleImportFile(event) {
   reader.readAsText(file);
 }
 </script>
+<script>
+/* ============================================================
+   GÖRSEL (Öncesi/Sonrası) + BALLMILL + G-KOD
+============================================================ */
+
+canvas = $('canvas');
+ctx = canvas ? canvas.getContext('2d') : null;
+
+function resizeCanvas() {
+  if (!canvas || !canvas.parentElement) return;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  draw();
+}
+
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 300));
+
+if (canvas) {
+  let dragging = false, lastX = 0, lastY = 0, pinchDist = 0;
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      dragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+      dragging = false;
+      pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY);
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && dragging) {
+      panX += e.touches[0].clientX - lastX;
+      panY += e.touches[0].clientY - lastY;
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+      draw(); e.preventDefault();
+    } else if (e.touches.length === 2) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY);
+      if (pinchDist > 0) zoom *= d / pinchDist;
+      zoom = Math.max(0.1, Math.min(10, zoom));
+      pinchDist = d; draw(); e.preventDefault();
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', () => { dragging = false; pinchDist = 0; });
+  canvas.addEventListener('mousedown', e => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+  });
+  canvas.addEventListener('mousemove', e => {
+    if (dragging) {
+      panX += e.clientX - lastX; panY += e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY; draw();
+    }
+  });
+  canvas.addEventListener('mouseup', () => dragging = false);
+  canvas.addEventListener('mouseleave', () => dragging = false);
+}
+
+function project(x, y, z) {
+  const angles = {
+    iso:   { a: -Math.PI/4,     t: Math.PI/6 },
+    top:   { a: 0,              t: Math.PI/2 - 0.01 },
+    front: { a: 0,              t: 0 },
+    side:  { a: -Math.PI/2,     t: 0 }
+  };
+  const { a, t } = angles[viewMode] || angles.iso;
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const ct = Math.cos(t), st = Math.sin(t);
+  const x1 = x * ca - y * sa;
+  const y1 = x * sa + y * ca;
+  const y2 = y1 * ct - z * st;
+  const z2 = y1 * st + z * ct;
+  const scale = Math.min(canvas.width, canvas.height) / 3 * zoom;
+  return {
+    x: canvas.width / 2 + x1 * scale + panX * devicePixelRatio,
+    y: canvas.height / 2 - z2 * scale + panY * devicePixelRatio
+  };
+}
+
+function setView(m) { viewMode = m; draw(); }
+function fitView() { panX = 0; panY = 0; zoom = 1; draw(); }
+function setBA(mode) {
+  baMode = mode;
+  $('btnBefore').classList.toggle('active', mode === 'before');
+  $('btnAfter').classList.toggle('active', mode === 'after');
+  draw();
+}
+
+function drawStock() {
+  const { x, y, z, cx, cy, topZ } = stockBox;
+  const x1 = cx - x/2, x2 = cx + x/2;
+  const y1 = cy - y/2, y2 = cy + y/2;
+  const zTop = topZ, zBot = topZ - z;
+
+  // Köşe noktaları
+  const p = {
+    a: project(x1, y1, zBot), b: project(x2, y1, zBot),
+    c: project(x2, y2, zBot), d: project(x1, y2, zBot),
+    e: project(x1, y1, zTop), f: project(x2, y1, zTop),
+    g: project(x2, y2, zTop), h: project(x1, y2, zTop)
+  };
+
+  // Alt yüzey (koyu)
+  ctx.fillStyle = 'rgba(60, 70, 90, 0.5)';
+  ctx.beginPath();
+  ctx.moveTo(p.a.x, p.a.y); ctx.lineTo(p.b.x, p.b.y);
+  ctx.lineTo(p.c.x, p.c.y); ctx.lineTo(p.d.x, p.d.y);
+  ctx.closePath(); ctx.fill();
+
+  // Yan yüzeyler
+  const faces = [
+    ['a','b','f','e', 'rgba(90, 100, 120, 0.6)'],
+    ['b','c','g','f', 'rgba(75, 85, 105, 0.6)'],
+    ['c','d','h','g', 'rgba(100, 110, 130, 0.6)'],
+    ['d','a','e','h', 'rgba(80, 90, 110, 0.6)']
+  ];
+  faces.forEach(([a,b,c,d,col]) => {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(p[a].x, p[a].y); ctx.lineTo(p[b].x, p[b].y);
+    ctx.lineTo(p[c].x, p[c].y); ctx.lineTo(p[d].x, p[d].y);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(200, 220, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  // Üst yüzey (açık renk)
+  ctx.fillStyle = baMode === 'before' ? 'rgba(140, 150, 170, 0.75)' : 'rgba(120, 130, 150, 0.75)';
+  ctx.beginPath();
+  ctx.moveTo(p.e.x, p.e.y); ctx.lineTo(p.f.x, p.f.y);
+  ctx.lineTo(p.g.x, p.g.y); ctx.lineTo(p.h.x, p.h.y);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(200, 220, 255, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // WCS sıfır işareti (üst ortada)
+  const o = project(cx, cy, zTop);
+  ctx.fillStyle = '#ff5555';
+  ctx.beginPath(); ctx.arc(o.x, o.y, 5 * devicePixelRatio, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+function drawProcessedAreas() {
+  const { x, y, cx, cy, topZ } = stockBox;
+  const lx = cx - x/2, rx = cx + x/2;
+  const ly = cy - y/2, ry = cy + y/2;
+
+  // Operasyonu çiz
+  const op = currentOp;
+
+  // Delikler (siyah daireler)
+  if (op === 'drill') {
+    const holes = parseHoles($('drillHoles').value);
+    const dia = num('drillDia');
+    holes.forEach(h => {
+      const p = project(h.x, h.y, topZ + 0.1);
+      const r = dia / 2 * (Math.min(canvas.width, canvas.height) / 3 * zoom) / devicePixelRatio;
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * devicePixelRatio, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#666'; ctx.lineWidth = 1; ctx.stroke();
+    });
+  }
+
+  // Kılavuz (küçük siyah noktalar)
+  if (op === 'tap') {
+    const holes = parseHoles($('tapHoles').value);
+    const dia = num('tapDia');
+    holes.forEach(h => {
+      const p = project(h.x, h.y, topZ + 0.1);
+      const r = dia / 2 * (Math.min(canvas.width, canvas.height) / 3 * zoom) / devicePixelRatio;
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * devicePixelRatio, 0, Math.PI*2); ctx.fill();
+    });
+  }
+
+  // Cep (koyu dikdörtgen)
+  if (op === 'pocket') {
+    const w = num('pocX'), h = num('pocY');
+    const pcx = num('pocCx'), pcy = num('pocCy');
+    const corners = [
+      project(pcx - w/2, pcy - h/2, topZ + 0.1),
+      project(pcx + w/2, pcy - h/2, topZ + 0.1),
+      project(pcx + w/2, pcy + h/2, topZ + 0.1),
+      project(pcx - w/2, pcy + h/2, topZ + 0.1)
+    ];
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    corners.slice(1).forEach(c => ctx.lineTo(c.x, c.y));
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // Daire cep
+  if (op === 'circle') {
+    const dia = num('cirD');
+    const ccx = num('cirCx'), ccy = num('cirCy');
+    const steps = 48;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const a = 2 * Math.PI * i / steps;
+      const p = project(ccx + dia/2 * Math.cos(a), ccy + dia/2 * Math.sin(a), topZ + 0.1);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // Kanal
+  if (op === 'slot') {
+    const L = num('slotL'), W = num('slotW');
+    const sx = num('slotX'), sy = num('slotY');
+    const dir = $('slotDir').value;
+    let corners;
+    if (dir === 'X') {
+      corners = [
+        project(sx, sy - W/2, topZ + 0.1),
+        project(sx + L, sy - W/2, topZ + 0.1),
+        project(sx + L, sy + W/2, topZ + 0.1),
+        project(sx, sy + W/2, topZ + 0.1)
+      ];
+    } else {
+      corners = [
+        project(sx - W/2, sy, topZ + 0.1),
+        project(sx + W/2, sy, topZ + 0.1),
+        project(sx + W/2, sy + L, topZ + 0.1),
+        project(sx - W/2, sy + L, topZ + 0.1)
+      ];
+    }
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    corners.slice(1).forEach(c => ctx.lineTo(c.x, c.y));
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // Kontur (yeşil çerçeve)
+  if (op === 'contour') {
+    const w = num('cntX'), h = num('cntY');
+    const ccx = num('cntCx'), ccy = num('cntCy');
+    const corners = [
+      project(ccx - w/2, ccy - h/2, topZ + 0.2),
+      project(ccx + w/2, ccy - h/2, topZ + 0.2),
+      project(ccx + w/2, ccy + h/2, topZ + 0.2),
+      project(ccx - w/2, ccy + h/2, topZ + 0.2)
+    ];
+    ctx.strokeStyle = '#00ffaa'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    corners.slice(1).forEach(c => ctx.lineTo(c.x, c.y));
+    ctx.closePath(); ctx.stroke();
+  }
+
+  // DXF
+  if (op === 'dxf' && dxfPaths.length > 0) {
+    const scale = num('dxfScale') || 1;
+    const offset = $('dxfOffset').checked;
+    let minX = Infinity, minY = Infinity;
+    dxfPaths.forEach(pa => pa.pts.forEach(q => {
+      if (q.x < minX) minX = q.x; if (q.y < minY) minY = q.y;
+    }));
+    const ox = offset ? -minX : 0, oy = offset ? -minY : 0;
+    ctx.strokeStyle = '#00ffaa'; ctx.lineWidth = 2;
+    dxfPaths.forEach(pa => {
+      ctx.beginPath();
+      pa.pts.forEach((q, i) => {
+        const p = project((q.x + ox) * scale, (q.y + oy) * scale, topZ + 0.2);
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+    });
+  }
+
+  // Yüzey (dokulu görünüm)
+  if (op === 'face') {
+    const w = num('faceX'), h = num('faceY');
+    const fx = num('faceX0'), fy = num('faceY0');
+    const corners = [
+      project(fx, fy, topZ + 0.2),
+      project(fx + w, fy, topZ + 0.2),
+      project(fx + w, fy + h, topZ + 0.2),
+      project(fx, fy + h, topZ + 0.2)
+    ];
+    ctx.fillStyle = 'rgba(0, 200, 150, 0.15)';
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    corners.slice(1).forEach(c => ctx.lineTo(c.x, c.y));
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#00ffaa'; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+
+function drawAxes() {
+  const axes = [
+    { to: [30, 0, 0], col: '#ff5555', label: 'X' },
+    { to: [0, 30, 0], col: '#55ff55', label: 'Y' },
+    { to: [0, 0, 30], col: '#5588ff', label: 'Z' }
+  ];
+  const o = project(0, 0, 0);
+  axes.forEach(a => {
+    const p = project(...a.to);
+    ctx.strokeStyle = a.col; ctx.lineWidth = 2 * devicePixelRatio;
+    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.fillStyle = a.col;
+    ctx.font = 'bold ' + (14 * devicePixelRatio) + 'px sans-serif';
+    ctx.fillText(a.label, p.x + 5, p.y - 5);
+  });
+}
+
+function draw() {
+  if (!ctx || !canvas) return;
+  const w = canvas.width, h = canvas.height;
+  ctx.fillStyle = '#0a0a15';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.lineWidth = 1;
+  const gs = 10, ext = 200;
+  for (let i = -ext; i <= ext; i += gs) {
+    let p1 = project(i, -ext, 0), p2 = project(i, ext, 0);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    p1 = project(-ext, i, 0); p2 = project(ext, i, 0);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+
+  drawAxes();
+
+  // Ham maddeyi her zaman çiz
+  drawStock();
+
+  // Sonrası modunda işlenmiş alanları çiz
+  if (baMode === 'after') {
+    drawProcessedAreas();
+  }
+
+  // Sonrası modunda tool path çizgileri
+  if (baMode === 'after' && toolpaths.length > 0) {
+    const { topZ } = stockBox;
+    toolpaths.forEach(tp => {
+      const a = project(tp.from.x, tp.from.y, topZ + 0.3);
+      const b = project(tp.to.x, tp.to.y, topZ + 0.3);
+      const isRapid = tp.type === 'rapid';
+      ctx.strokeStyle = isRapid ? 'rgba(255, 220, 100, 0.5)' : 'rgba(0, 255, 170, 0.7)';
+      ctx.lineWidth = (isRapid ? 1 : 2) * devicePixelRatio;
+      ctx.setLineDash(isRapid ? [4, 4] : []);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
+
+  if (baMode === 'before') {
+    ctx.fillStyle = 'rgba(79, 195, 247, 0.9)';
+    ctx.font = 'bold ' + (14 * devicePixelRatio) + 'px sans-serif';
+    ctx.fillText('📥 ÖNCESİ — Ham madde', 12 * devicePixelRatio, 24 * devicePixelRatio);
+  } else {
+    ctx.fillStyle = 'rgba(0, 255, 170, 0.9)';
+    ctx.font = 'bold ' + (14 * devicePixelRatio) + 'px sans-serif';
+    ctx.fillText('📤 SONRASI — İşlenmiş', 12 * devicePixelRatio, 24 * devicePixelRatio);
+  }
+}
+
+function updateInfoPanel() {
+  const x = num('stkX') || 0, y = num('stkY') || 0, z = num('stkZ') || 0;
+  $('ipStock').textContent = x + ' × ' + y + ' × ' + z + ' mm';
+  $('ipWcs').textContent = $('wcs').value;
+
+  // Tool path uzunluğu ve tahmini süre
+  let totalLen = 0, rapidLen = 0, cutLen = 0;
+  toolpaths.forEach(tp => {
+    const d = Math.hypot(tp.to.x - tp.from.x, tp.to.y - tp.from.y, tp.to.z - tp.from.z);
+    totalLen += d;
+    if (tp.type === 'rapid') rapidLen += d; else cutLen += d;
+  });
+  $('ipPath').textContent = (totalLen / 1000).toFixed(2) + ' m';
+
+  const feed = num('feed') || 200;
+  const rapidFeed = 5000;
+  const minutes = (cutLen / feed) + (rapidLen / rapidFeed);
+  const mins = Math.floor(minutes);
+  const secs = Math.round((minutes - mins) * 60);
+  $('ipTime').textContent = mins + ' dk ' + secs + ' sn';
+}
+
+function updateStockFromInputs() {
+  stockBox.x = num('stkX') || 120;
+  stockBox.y = num('stkY') || 80;
+  stockBox.z = num('stkZ') || 20;
+  stockBox.cx = num('stkCx') || 0;
+  stockBox.cy = num('stkCy') || 0;
+  stockBox.topZ = num('stkTopZ') || 0;
+}
+
+['stkX','stkY','stkZ','stkCx','stkCy','stkTopZ'].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener('input', () => { updateStockFromInputs(); draw(); });
+});
+
+// ---- G-KOD ÜRETİCİ (Standart operasyonlar) ----
+function header(L) {
+  L.push('%');
+  L.push('O' + String(int('progNo')).padStart(4, '0') + ' (FANUC VMC)');
+  L.push('(TARIH: ' + new Date().toLocaleDateString('tr-TR') + ')');
+  L.push('(OP: ' + currentOp.toUpperCase() + ')');
+  L.push('G21 ' + currentPlane + ' G40 G49 G80 G90');
+  L.push('G91 G28 Z0.');
+  L.push('T' + int('toolNo') + ' M06');
+  L.push('G90 ' + $('wcs').value + ' G00 X0. Y0.');
+  L.push('G43 H' + int('offsetNo') + ' Z' + fmt(num('safeZ')));
+  L.push('S' + int('spindle') + ' M03');
+  L.push('M08');
+}
+
+function footer(L) {
+  L.push('G00 Z' + fmt(num('safeZ')));
+  L.push('M09');
+  L.push('G91 G28 Z0.');
+  L.push('G28 X0. Y0.');
+  L.push('M05');
+  L.push('M30');
+  L.push('%');
+}
+
+function generate() {
+  const L = [];
+  toolpaths = [];
+  updateStockFromInputs();
+  header(L);
+  try {
+    switch (currentOp) {
+      case 'drill':   genDrill(L);   break;
+      case 'tap':     genTap(L);     break;
+      case 'pocket':  genPocket(L);  break;
+      case 'face':    genFace(L);    break;
+      case 'contour': genContour(L); break;
+      case 'circle':  genCircle(L);  break;
+      case 'slot':    genSlot(L);     break;
+      case 'dxf':     genDXF(L);     break;
+    }
+  } catch (err) { L.push('(HATA: ' + err.message + ')'); }
+  footer(L);
+  $('gcode').textContent = L.join('\n');
+  updateInfoPanel();
+  setTimeout(() => {
+    resizeCanvas();
+    setBA('after');
+    const s = document.querySelector('.tab-btn[data-tab="sim"]');
+    if (s) s.click();
+  }, 200);
+  toast('✓ ' + toolpaths.length + ' hareket');
+}
+
+function genDrill(L) {
+  const holes = parseHoles($('drillHoles').value);
+  if (!holes.length) throw new Error('Delik yok');
+  const depth = num('drillDepth'), R = num('startZ'), Z = -Math.abs(depth);
+  const cycle = $('drillCycle').value, F = num('feed');
+  const topZ = stockBox.topZ;
+  L.push(''); L.push('(DELIK - ' + holes.length + ' ADET)');
+  L.push('G00 X' + fmt(holes[0].x) + ' Y' + fmt(holes[0].y));
+  L.push('G00 Z' + fmt(R));
+  if (cycle === 'G81') L.push('G81 X' + fmt(holes[0].x) + ' Y' + fmt(holes[0].y) + ' Z' + fmt(Z) + ' R' + fmt(R) + ' F' + fmt(F));
+  else if (cycle === 'G83') L.push('G83 X' + fmt(holes[0].x) + ' Y' + fmt(holes[0].y) + ' Z' + fmt(Z) + ' R' + fmt(R) + ' Q' + fmt(num('peckQ')) + ' F' + fmt(F));
+  else L.push('G73 X' + fmt(holes[0].x) + ' Y' + fmt(holes[0].y) + ' Z' + fmt(Z) + ' R' + fmt(R) + ' Q' + fmt(num('peckQ')) + ' F' + fmt(F));
+  for (let i = 0; i < holes.length; i++) {
+    if (i > 0) L.push('X' + fmt(holes[i].x) + ' Y' + fmt(holes[i].y));
+    toolpaths.push({ type:'rapid', from:{x:holes[i].x,y:holes[i].y,z:topZ}, to:{x:holes[i].x,y:holes[i].y,z:topZ-Z} });
+    toolpaths.push({ type:'cut',   from:{x:holes[i].x,y:holes[i].y,z:topZ-Z}, to:{x:holes[i].x,y:holes[i].y,z:topZ} });
+  }
+  L.push('G80');
+}
+
+function genTap(L) {
+  const holes = parseHoles($('tapHoles').value);
+  if (!holes.length) throw new Error('Delik yok');
+  const pitch = num('tapPitch'), S = int('spindle'), F = S * pitch;
+  const depth = num('tapDepth'), R = num('startZ'), Z = -Math.abs(depth);
+  const topZ = stockBox.topZ;
+  L.push(''); L.push('(KILAVUZ M' + fmt(num('tapDia')) + ' x ' + fmt(pitch) + ')');
+  L.push('G00 X' + fmt(holes[0].x) + ' Y' + fmt(holes[0].y));
+  L.push('G00 Z' + fmt(R));
+  L.push('M29 S' + S);
+  L.push('G84 X' + fmt(holes[0].x) + ' Y' + fmt(holes[0].y) + ' Z' + fmt(Z) + ' R' + fmt(R) + ' F' + fmt(F));
+  for (let i = 0; i < holes.length; i++) {
+    if (i > 0) L.push('X' + fmt(holes[i].x) + ' Y' + fmt(holes[i].y));
+    toolpaths.push({ type:'rapid', from:{x:holes[i].x,y:holes[i].y,z:topZ}, to:{x:holes[i].x,y:holes[i].y,z:topZ-Z} });
+    toolpaths.push({ type:'cut',   from:{x:holes[i].x,y:holes[i].y,z:topZ-Z}, to:{x:holes[i].x,y:holes[i].y,z:topZ} });
+  }
+  L.push('G80');
+}
+
+function genPocket(L) {
+  const W = num('pocX'), H = num('pocY'), depth = Math.abs(num('pocZ'));
+  const D = num('pocTool'), stepPct = num('pocStep')/100, layer = num('pocLayer');
+  const cx = num('pocCx'), cy = num('pocCy'), F = num('feed');
+  const r = D/2, topZ = stockBox.topZ;
+  const xmin = cx-W/2+r, xmax = cx+W/2-r, ymin = cy-H/2+r, ymax = cy+H/2-r;
+  const stepY = D*stepPct, layers = Math.ceil(depth/layer);
+  L.push(''); L.push('(CEP ' + W + 'x' + H + ')');
+  for (let l = 1; l <= layers; l++) {
+    const z = -Math.min(l*layer, depth);
+    L.push('G00 X' + fmt(xmin) + ' Y' + fmt(ymin));
+    L.push('G01 Z' + fmt(z) + ' F' + fmt(F/2));
+    let y = ymin, dir = 1;
+    while (y < ymax - 0.001) {
+      const yEnd = Math.min(y + stepY, ymax);
+      if (dir > 0) {
+        L.push('G01 X' + fmt(xmax) + ' Y' + fmt(y) + ' F' + fmt(F));
+        L.push('G01 X' + fmt(xmax) + ' Y' + fmt(yEnd));
+        L.push('G01 X' + fmt(xmin) + ' Y' + fmt(yEnd));
+      } else {
+        L.push('G01 X' + fmt(xmin) + ' Y' + fmt(y) + ' F' + fmt(F));
+        L.push('G01 X' + fmt(xmin) + ' Y' + fmt(yEnd));
+        L.push('G01 X' + fmt(xmax) + ' Y' + fmt(yEnd));
+      }
+      y = yEnd; dir *= -1;
+    }
+    L.push('G00 Z' + fmt(num('startZ')));
+  }
+  // Görsel için basit toolpath
+  toolpaths.push({ type:'rapid', from:{x:cx,y:cy,z:topZ}, to:{x:cx,y:cy,z:topZ-depth} });
+}
+
+function genFace(L) {
+  const W = num('faceX'), H = num('faceY'), D = num('faceTool');
+  const stepPct = num('faceStep')/100, z = num('faceZ');
+  const x0 = num('faceX0'), y0 = num('faceY0'), F = num('feed');
+  const stepY = D*stepPct, overlap = D/2;
+  const topZ = stockBox.topZ;
+  L.push(''); L.push('(YUZEY ' + W + 'x' + H + ')');
+  let y = y0 - overlap, dir = 1;
+  const yEnd = y0 + H + overlap;
+  const x1 = x0 - overlap, x2 = x0 + W + overlap;
+  while (y <= yEnd + 0.001) {
+    const xs = dir > 0 ? x1 : x2, xe = dir > 0 ? x2 : x1;
+    L.push('G00 X' + fmt(xs) + ' Y' + fmt(y));
+    L.push('G01 Z' + fmt(z) + ' F' + fmt(F/2));
+    L.push('G01 X' + fmt(xe) + ' F' + fmt(F));
+    L.push('G00 Z' + fmt(z + 2));
+    toolpaths.push({ type:'cut', from:{x:xs,y,z:topZ+z}, to:{x:xe,y,z:topZ+z} });
+    y += stepY; dir *= -1;
+    if (y > yEnd) break;
+  }
+}
+
+function genContour(L) {
+  const W = num('cntX'), H = num('cntY'), depth = Math.abs(num('cntZ'));
+  const layer = num('cntLayer'), cx = num('cntCx'), cy = num('cntCy');
+  const F = num('feed'), comp = $('cntComp').value;
+  const layers = Math.ceil(depth/layer), topZ = stockBox.topZ;
+  const x1 = cx-W/2, y1 = cy-H/2, x2 = cx+W/2, y2 = cy+H/2;
+  L.push(''); L.push('(KONTUR ' + W + 'x' + H + ')');
+  for (let l = 1; l <= layers; l++) {
+    const z = -Math.min(l*layer, depth);
+    L.push('G00 X' + fmt(x1-20) + ' Y' + fmt(y1-20));
+    L.push('G01 Z' + fmt(z) + ' F' + fmt(F/2));
+    if (comp !== 'none') L.push('G01 ' + comp + ' X' + fmt(x1) + ' Y' + fmt(y1) + ' D' + int('offsetNo') + ' F' + fmt(F));
+    else L.push('G01 X' + fmt(x1) + ' Y' + fmt(y
