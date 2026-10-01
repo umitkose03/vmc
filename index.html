@@ -1289,3 +1289,338 @@ function genContour(L) {
   for (let l = 1; l <= layers; l++) {
     const z = -Math.min(l*layer, depth);
     L.push('G00 X' + fmt(x1-20) + ' Y' + fmt(y1-20));
+L.push('G01 Z' + fmt(z) + ' F' + fmt(F/2));
+    if (comp !== 'none') L.push('G01 ' + comp + ' X' + fmt(x1) + ' Y' + fmt(y1) + ' D' + int('offsetNo') + ' F' + fmt(F));
+    else L.push('G01 X' + fmt(x1) + ' Y' + fmt(y1) + ' F' + fmt(F));
+    const pts = [[x1,y2],[x2,y2],[x2,y1],[x1,y1]];
+    let px = x1, py = y1;
+    pts.forEach(([x, y]) => {
+      L.push('G01 X' + fmt(x) + ' Y' + fmt(y));
+      px = x; py = y;
+    });
+    if (comp !== 'none') L.push('G01 G40 X' + fmt(x1-20) + ' Y' + fmt(y1-20));
+    else L.push('G01 X' + fmt(x1-20) + ' Y' + fmt(y1-20));
+    L.push('G00 Z' + fmt(num('startZ')));
+  }
+}
+function genCircle(L) {
+  const Dia = num('cirD'), depth = Math.abs(num('cirZ'));
+  const D = num('cirTool'), layer = num('cirLayer');
+  const cx = num('cirCx'), cy = num('cirCy'), F = num('feed');
+  const layers = Math.ceil(depth/layer);
+  const R = Math.max((Dia - D) / 2, 0.1);
+  const topZ = stockBox.topZ;
+  L.push(''); L.push('(DAIRE D' + Dia + ')');
+  for (let l = 1; l <= layers; l++) {
+    const z = -Math.min(l*layer, depth);
+    L.push('G00 X' + fmt(cx + R) + ' Y' + fmt(cy));
+    L.push('G01 Z' + fmt(z) + ' F' + fmt(F/3));
+    L.push('G03 X' + fmt(cx + R) + ' Y' + fmt(cy) + ' I' + fmt(-R) + ' J0. F' + fmt(F));
+    toolpaths.push({ type:'cut', from:{x:cx+R,y:cy,z:topZ+z}, to:{x:cx-R,y:cy,z:topZ+z} });
+    toolpaths.push({ type:'cut', from:{x:cx-R,y:cy,z:topZ+z}, to:{x:cx+R,y:cy,z:topZ+z} });
+    L.push('G00 Z' + fmt(num('startZ')));
+  }
+}
+function genSlot(L) {
+  const L_ = num('slotL'), depth = Math.abs(num('slotZ'));
+  const D = num('slotTool'), x0 = num('slotX'), y0 = num('slotY');
+  const F = num('feed'), dir = $('slotDir').value, r = D/2;
+  const topZ = stockBox.topZ;
+  L.push(''); L.push('(KANAL)');
+  if (dir === 'X') {
+    L.push('G00 X' + fmt(x0+r) + ' Y' + fmt(y0));
+    L.push('G01 Z' + fmt(-depth) + ' F' + fmt(F/2));
+    L.push('G01 X' + fmt(x0+L_-r) + ' F' + fmt(F));
+    toolpaths.push({ type:'cut', from:{x:x0+r,y:y0,z:topZ-depth}, to:{x:x0+L_-r,y:y0,z:topZ-depth} });
+  } else {
+    L.push('G00 X' + fmt(x0) + ' Y' + fmt(y0+r));
+    L.push('G01 Z' + fmt(-depth) + ' F' + fmt(F/2));
+    L.push('G01 Y' + fmt(y0+L_-r) + ' F' + fmt(F));
+    toolpaths.push({ type:'cut', from:{x:x0,y:y0+r,z:topZ-depth}, to:{x:x0,y:y0+L_-r,z:topZ-depth} });
+  }
+  L.push('G00 Z' + fmt(num('startZ')));
+}
+function genDXF(L) {
+  if (!dxfPaths.length) throw new Error('DXF yüklenmedi');
+  const depth = Math.abs(num('dxfZ')), layer = num('dxfLayer');
+  const scale = num('dxfScale'), F = num('feed');
+  const comp = $('dxfComp').value, offsetToZero = $('dxfOffset').checked;
+  const topZ = stockBox.topZ;
+  let minX = Infinity, minY = Infinity;
+  dxfPaths.forEach(p => p.pts.forEach(q => {
+    if (q.x < minX) minX = q.x;
+    if (q.y < minY) minY = q.y;
+  }));
+  const ox = offsetToZero ? -minX : 0, oy = offsetToZero ? -minY : 0;
+  L.push(''); L.push('(DXF - ' + dxfPaths.length + ' path)');
+  const layers = Math.ceil(depth/layer);
+  dxfPaths.forEach((path, idx) => {
+    L.push('(PATH ' + (idx+1) + ')');
+    const pts = path.pts.map(p => ({ x: (p.x+ox)*scale, y: (p.y+oy)*scale }));
+    for (let l = 1; l <= layers; l++) {
+      const z = -Math.min(l*layer, depth);
+      L.push('G00 X' + fmt(pts[0].x) + ' Y' + fmt(pts[0].y));
+      L.push('G01 Z' + fmt(z) + ' F' + fmt(F/3));
+      if (comp !== 'none') L.push('G01 ' + comp + ' X' + fmt(pts[0].x) + ' Y' + fmt(pts[0].y) + ' D' + int('offsetNo') + ' F' + fmt(F));
+      for (let i = 1; i < pts.length; i++) {
+        L.push('G01 X' + fmt(pts[i].x) + ' Y' + fmt(pts[i].y) + ' F' + fmt(F));
+        if (l === 1) toolpaths.push({ type:'cut', from:{x:pts[i-1].x,y:pts[i-1].y,z:topZ+z}, to:{x:pts[i].x,y:pts[i].y,z:topZ+z} });
+      }
+      if (comp !== 'none') L.push('G01 G40 X' + fmt(pts[0].x) + ' Y' + fmt(pts[0].y));
+      L.push('G00 Z' + fmt(num('startZ')));
+    }
+  });
+}
+const dxfFileEl = $('dxfFile');
+if (dxfFileEl) {
+  dxfFileEl.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $('dxfStatus').innerHTML = '<span class="loading"></span> Okunuyor...';
+    $('dxfStatus').className = 'dxf-status';
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const paths = parseDXF(ev.target.result);
+        dxfPaths = paths;
+        const total = paths.reduce((s, p) => s + p.pts.length, 0);
+        $('dxfStatus').textContent = '✓ ' + paths.length + ' path, ' + total + ' nokta';
+        $('dxfStatus').className = 'dxf-status';
+        toast('DXF: ' + paths.length + ' kontur');
+      } catch (err) {
+        $('dxfStatus').textContent = '✗ ' + err.message;
+        $('dxfStatus').className = 'dxf-status error';
+        dxfPaths = [];
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+function parseDXF(text) {
+  const lines = text.split(/\r?\n/);
+  const pairs = [];
+  for (let i = 0; i < lines.length - 1; i += 2) {
+    const code = parseInt(lines[i].trim());
+    const val = lines[i + 1] ? lines[i + 1].trim() : '';
+    if (!isNaN(code)) pairs.push({ code, val });
+  }
+  const paths = [];
+  let entities = [], inEntities = false, current = null;
+  let polylinePts = [], inPolyline = false;
+  for (let i = 0; i < pairs.length; i++) {
+    const { code, val } = pairs[i];
+    if (code === 0) {
+      const type = val.toUpperCase();
+      if (current && inPolyline && (type === 'SEQEND' || type === 'LWPOLYLINE' || type === 'POLYLINE')) {
+        if (polylinePts.length > 1) paths.push({ type:'polyline', pts: polylinePts.slice() });
+        polylinePts = []; inPolyline = false;
+      }
+      if (type === 'SECTION') {
+        const nc = pairs[i + 1];
+        if (nc && nc.code === 2 && nc.val === 'ENTITIES') inEntities = true;
+      } else if (type === 'ENDSEC') { inEntities = false; }
+      else if (inEntities && type === 'LINE') { current = { type:'LINE', x1:0,y1:0,x2:0,y2:0 }; entities.push(current); }
+      else if (inEntities && type === 'LWPOLYLINE') { current = { type:'LWPOLYLINE' }; inPolyline = true; polylinePts = []; entities.push(current); }
+      else if (inEntities && type === 'POLYLINE') { current = { type:'POLYLINE' }; inPolyline = true; polylinePts = []; entities.push(current); }
+      else if (inEntities && type === 'VERTEX') { polylinePts.push({x:0,y:0}); current = { type:'VERTEX' }; }
+      else if (inEntities && type === 'CIRCLE') { current = { type:'CIRCLE', cx:0,cy:0,r:0 }; entities.push(current); }
+      else if (inEntities && type === 'ARC') { current = { type:'ARC', cx:0,cy:0,r:0,a1:0,a2:0 }; entities.push(current); }
+      continue;
+    }
+    if (!inEntities || !current) continue;
+    if (current.type === 'LINE') {
+      if (code === 10) current.x1 = parseFloat(val);
+      else if (code === 20) current.y1 = parseFloat(val);
+      else if (code === 11) current.x2 = parseFloat(val);
+      else if (code === 21) current.y2 = parseFloat(val);
+    } else if (current.type === 'LWPOLYLINE') {
+      if (code === 10) polylinePts.push({ x: parseFloat(val), y: 0 });
+      else if (code === 20 && polylinePts.length) polylinePts[polylinePts.length-1].y = parseFloat(val);
+    } else if (current.type === 'VERTEX') {
+      if (code === 10) polylinePts[polylinePts.length-1].x = parseFloat(val);
+      else if (code === 20) polylinePts[polylinePts.length-1].y = parseFloat(val);
+    } else if (current.type === 'CIRCLE' || current.type === 'ARC') {
+      if (code === 10) current.cx = parseFloat(val);
+      else if (code === 20) current.cy = parseFloat(val);
+      else if (code === 40) current.r = parseFloat(val);
+      else if (code === 50) current.a1 = parseFloat(val);
+      else if (code === 51) current.a2 = parseFloat(val);
+    }
+  }
+  if (inPolyline && polylinePts.length > 1) paths.push({ type:'polyline', pts: polylinePts.slice() });
+  entities.forEach(ent => {
+    if (ent.type === 'LINE') paths.push({ type:'line', pts:[{x:ent.x1,y:ent.y1},{x:ent.x2,y:ent.y2}] });
+    else if (ent.type === 'CIRCLE') {
+      const pts = []; const N = 64;
+      for (let i = 0; i <= N; i++) { const a = 2*Math.PI*i/N; pts.push({ x:ent.cx+ent.r*Math.cos(a), y:ent.cy+ent.r*Math.sin(a) }); }
+      paths.push({ type:'circle', pts });
+    } else if (ent.type === 'ARC') {
+      const pts = []; const N = 32;
+      let a1 = ent.a1*Math.PI/180, a2 = ent.a2*Math.PI/180;
+      if (a2 < a1) a2 += 2*Math.PI;
+      for (let i = 0; i <= N; i++) { const a = a1+(a2-a1)*i/N; pts.push({ x:ent.cx+ent.r*Math.cos(a), y:ent.cy+ent.r*Math.sin(a) }); }
+      paths.push({ type:'arc', pts });
+    }
+  });
+  return paths.map(p => {
+    const cleaned = [p.pts[0]];
+    for (let i = 1; i < p.pts.length; i++) {
+      const prev = cleaned[cleaned.length-1], cur = p.pts[i];
+      if (Math.hypot(cur.x-prev.x, cur.y-prev.y) > 0.001) cleaned.push(cur);
+    }
+    return { ...p, pts: cleaned };
+  }).filter(p => p.pts.length > 1);
+}
+function copyGcode() {
+  const txt = $('gcode').textContent;
+  if (!txt || txt.startsWith('//')) return toast('Önce kod üret');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(() => toast('✓ Kopyalandı'), () => fallbackCopy(txt));
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt) {
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('✓ Kopyalandı'); } catch (e) { toast('Kopyalanamadı'); }
+  document.body.removeChild(ta);
+}
+function downloadGcode() {
+  const txt = $('gcode').textContent;
+  if (!txt || txt.startsWith('//')) return toast('Önce kod üret');
+  const blob = new Blob([txt], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'O' + String(int('progNo')).padStart(4, '0') + '.nc';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('İndiriliyor...');
+}
+async function shareGcode() {
+  const txt = $('gcode').textContent;
+  if (!txt || txt.startsWith('//')) return toast('Önce kod üret');
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Fanuc Program', text: txt }); } catch (e) {}
+  } else copyGcode();
+}
+function bmStepFromCusp() {
+  const chk = $('bmCuspCalc');
+  if (!chk || !chk.checked) return;
+  const R = num('bmTool') / 2;
+  const cusp = num('bmCusp');
+  if (R <= 0 || cusp <= 0) return;
+  const step = 2 * Math.sqrt(2 * R * cusp - cusp * cusp);
+  $('bmCalcStep').value = step.toFixed(3) + ' mm';
+  $('bmStep').value = step.toFixed(3);
+}
+const bmChk = $('bmCuspCalc');
+if (bmChk) bmChk.addEventListener('change', bmStepFromCusp);
+['bmTool', 'bmCusp'].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener('input', bmStepFromCusp);
+});
+function bmSurfaceZ(type, x, y, W, H, Z, cx, cy) {
+  const nx = (x - cx) / (W / 2);
+  const ny = (y - cy) / (H / 2);
+  const r = Math.sqrt(nx * nx + ny * ny);
+  if (type === 'sphere') { if (r > 1) return 0; return Z * Math.sqrt(Math.max(0, 1 - r * r)); }
+  else if (type === 'dome') { if (r > 1) return 0; return Z * Math.cos(r * Math.PI / 2); }
+  else if (type === 'cone') { if (r > 1) return 0; return Z * (1 - r); }
+  else if (type === 'wave') { return Z * 0.5 * (1 + Math.sin(nx * Math.PI * 2)) * Math.cos(ny * Math.PI); }
+  else if (type === 'vgroove') { return Z * Math.max(0, 1 - Math.abs(nx)); }
+  else if (type === 'plane') { return Z * nx; }
+  return 0;
+}
+function generateBallmill() {
+  const type = $('bmSurface').value;
+  const W = num('bmX'), H = num('bmY'), Z = num('bmZ');
+  const D = num('bmTool'), R = D / 2;
+  const step = num('bmStep');
+  const F = num('bmFeed'), S = num('bmSpindle');
+  const cx = num('bmCx'), cy = num('bmCy');
+  const strategy = $('bmStrategy').value;
+  const toolNo = int('toolNo'), offsetNo = int('offsetNo');
+  const safeZ = num('safeZ');
+  if (step <= 0) { toast('Stepover > 0 olmalı'); return; }
+  const L = [];
+  toolpaths = [];
+  L.push('%');
+  L.push('O' + String(int('progNo')).padStart(4, '0') + ' (BALLMILL ' + type.toUpperCase() + ')');
+  L.push('(TARIH: ' + new Date().toLocaleDateString('tr-TR') + ')');
+  L.push('(BALLMILL Ø' + D + ' - ' + type + ')');
+  L.push('(SURFACE ' + W + 'x' + H + ' Z' + Z + ')');
+  L.push('G21 G17 G40 G49 G80 G90');
+  L.push('G91 G28 Z0.');
+  L.push('T' + toolNo + ' M06');
+  L.push('G90 ' + $('wcs').value + ' G00 X0. Y0.');
+  L.push('G43 H' + offsetNo + ' Z' + fmt(safeZ));
+  L.push('S' + S + ' M03');
+  L.push('M08');
+  L.push('');
+  if (strategy === 'raster') {
+    const passes = Math.ceil(H / step);
+    let dir = 1;
+    for (let p = 0; p <= passes; p++) {
+      const y = cy - H/2 + p * step;
+      const x1 = cx - W/2, x2 = cx + W/2;
+      const xs = dir > 0 ? x1 : x2;
+      const xe = dir > 0 ? x2 : x1;
+      const zStart = bmSurfaceZ(type, xs, y, W, H, Z, cx, cy);
+      const zEnd = bmSurfaceZ(type, xe, y, W, H, Z, cx, cy);
+      L.push('G00 X' + fmt(xs) + ' Y' + fmt(y));
+      L.push('G00 Z' + fmt(zStart + R + 1));
+      L.push('G01 Z' + fmt(zStart + R) + ' F' + fmt(F/2));
+      L.push('G01 X' + fmt(xe) + ' Y' + fmt(y) + ' Z' + fmt(zEnd + R) + ' F' + fmt(F));
+      toolpaths.push({ type:'cut', from:{x:xs,y,z:zStart+R}, to:{x:xe,y,z:zEnd+R} });
+      dir *= -1;
+      if (y > cy + H/2) break;
+    }
+  } else {
+    const maxR = Math.min(W, H) / 2;
+    const turns = Math.ceil(maxR / step);
+    const ppt = 72;
+    L.push('G00 X' + fmt(cx) + ' Y' + fmt(cy));
+    L.push('G00 Z' + fmt(Z + R + 1));
+    let first = true;
+    for (let t = 0; t <= turns; t++) {
+      const r = t * step;
+      if (r > maxR) break;
+      const zSurf = bmSurfaceZ(type, cx + r, cy, W, H, Z, cx, cy);
+      if (first) { L.push('G01 Z' + fmt(zSurf + R) + ' F' + fmt(F/2)); first = false; }
+      for (let a = 0; a <= ppt; a++) {
+        const ang = 2 * Math.PI * a / ppt;
+        const x = cx + r * Math.cos(ang);
+        const y = cy + r * Math.sin(ang);
+        if (x < cx-W/2 || x > cx+W/2 || y < cy-H/2 || y > cy+H/2) continue;
+        const zs = bmSurfaceZ(type, x, y, W, H, Z, cx, cy);
+        L.push('G01 X' + fmt(x) + ' Y' + fmt(y) + ' Z' + fmt(zs + R) + ' F' + fmt(F));
+      }
+    }
+  }
+  L.push('G00 Z' + fmt(safeZ));
+  L.push('M09');
+  L.push('G91 G28 Z0.');
+  L.push('G28 X0. Y0.');
+  L.push('M05');
+  L.push('M30');
+  L.push('%');
+  $('gcode').textContent = L.join('\n');
+  let totalLen = 0;
+  toolpaths.forEach(tp => totalLen += Math.hypot(tp.to.x-tp.from.x, tp.to.y-tp.from.y, tp.to.z-tp.from.z));
+  $('ipPath').textContent = (totalLen/1000).toFixed(2) + ' m';
+  const minutes = totalLen / F;
+  const mins = Math.floor(minutes), secs = Math.round((minutes-mins)*60);
+  $('ipTime').textContent = mins + ' dk ' + secs + ' sn';
+  setTimeout(() => { resizeCanvas(); setBA('after'); const s = document.querySelector('.tab-btn[data-tab="sim"]'); if (s) s.click(); }, 200);
+  toast('✓ Ballmill: ' + toolpaths.length + ' hareket');
+}
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    renderTools(); renderLibrary(); updateStockFromInputs();
+    resizeCanvas(); setBA('before'); updateInfoPanel();
+    toast('Fanuc VMC Pro hazır');
+  }, 300);
+});
+</script>
+</body>
+</html>
