@@ -1289,6 +1289,3 @@ function genContour(L) {
   for (let l = 1; l <= layers; l++) {
     const z = -Math.min(l*layer, depth);
     L.push('G00 X' + fmt(x1-20) + ' Y' + fmt(y1-20));
-    L.push('G01 Z' + fmt(z) + ' F' + fmt(F/2));
-    if (comp !== 'none') L.push('G01 ' + comp + ' X' + fmt(x1) + ' Y' + fmt(y1) + ' D' + int('offsetNo') + ' F' + fmt(F));
-    else L.push('G01 X' + fmt(x1) + ' Y' + fmt(y
