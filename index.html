@@ -803,9 +803,9 @@ function project(x, y, z) {
   const y2 = y1 * ct - z * st;
   const z2 = y1 * st + z * ct;
   // Scale: stock boyutuna göre dinamik
-  const maxDim = Math.max(stockBox.x || 100, stockBox.y || 100, stockBox.z || 50) * 1.8;
-  const canvasMin = Math.min(canvas.width, canvas.height);
-  const scale = (canvasMin / maxDim) * zoom;
+  const maxDim = Math.max(stockBox.x || 100, stockBox.y || 100, stockBox.z || 50) * 2;
+const canvasMin = Math.min(canvas.width, canvas.height) / devicePixelRatio;
+const scale = (canvasMin / maxDim) * zoom;
   return {
     x: canvas.width / 2 + x1 * scale + panX * devicePixelRatio,
     y: canvas.height / 2 - z2 * scale + panY * devicePixelRatio
