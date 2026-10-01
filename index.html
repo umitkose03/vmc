@@ -413,3 +413,316 @@ input[type=file]::-webkit-file-upload-button{background:#4fc3f7;color:#111;borde
 </div>
 </div>
 <div id="toast"></div>
+
+  <script>
+/* ============================================================
+   FANUC VMC PRO - JAVASCRIPT
+============================================================ */
+
+// ---- GLOBAL DURUM ----
+let currentOp = 'drill';
+let currentPlane = 'G17';
+let tools = JSON.parse(localStorage.getItem('fanuc_tools') || 'null') || [
+  { id: 1, name: 'Ø10 Düz Freze', dia: 10, type: 'flat' },
+  { id: 2, name: 'Ø12 Düz Freze', dia: 12, type: 'flat' },
+  { id: 3, name: 'Ø6 Düz Freze', dia: 6, type: 'flat' },
+  { id: 4, name: 'Ø10 Matkap', dia: 10, type: 'drill' },
+  { id: 5, name: 'M8 Kılavuz', dia: 8, type: 'tap' },
+  { id: 6, name: 'Ø6 Ballmill', dia: 6, type: 'ball' }
+];
+let activeToolId = null;
+let dxfPaths = [];
+let toolpaths = [];
+let stockBox = { x: 120, y: 80, z: 20, cx: 0, cy: 0, topZ: 0 };
+let baMode = 'before';
+let viewMode = 'iso';
+let canvas, ctx, panX = 0, panY = 0, zoom = 1;
+
+// ---- KISA YARDIMCILAR ----
+const $ = id => document.getElementById(id);
+const num = id => parseFloat($(id).value) || 0;
+const int = id => parseInt($(id).value) || 0;
+const fmt = n => {
+  if (Math.abs(n) < 1e-9) n = 0;
+  return Number(n).toFixed(3).replace(/\.?0+$/, '') || '0';
+};
+const parseHoles = txt => txt.trim().split('\n').map(l => {
+  const p = l.split(',').map(s => parseFloat(s.trim()));
+  return { x: p[0], y: p[1] };
+}).filter(p => !isNaN(p.x) && !isNaN(p.y));
+const escapeHtml = str => String(str || '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+function toast(msg) {
+  const t = $('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ---- SEKMELER ----
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    const pane = $('tab-' + btn.dataset.tab);
+    if (pane) pane.classList.add('active');
+    if (btn.dataset.tab === 'sim') setTimeout(resizeCanvas, 100);
+  });
+});
+
+// ---- OPERASYON / DÜZLEM ----
+document.querySelectorAll('.op-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.op-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentOp = btn.dataset.op;
+    document.querySelectorAll('[id^="pane-"]').forEach(p => p.classList.add('hidden'));
+    const pane = $('pane-' + currentOp);
+    if (pane) pane.classList.remove('hidden');
+  });
+});
+
+document.querySelectorAll('.plane-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.plane-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPlane = btn.dataset.plane;
+  });
+});
+
+const dc = $('drillCycle');
+if (dc) dc.addEventListener('change', e => {
+  const pr = $('peckRow');
+  if (pr) pr.classList.toggle('hidden', e.target.value === 'G81');
+});
+
+// ---- TAKIM KÜTÜPHANESİ ----
+function renderTools() {
+  const list = $('toolList');
+  if (!list) return;
+  list.innerHTML = '';
+  if (tools.length === 0) {
+    list.innerHTML = '<p class="info" style="text-align:center;padding:20px;">Henüz takım yok</p>';
+  }
+  tools.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'tool-item' + (t.id === activeToolId ? ' active' : '');
+    const typeName = { flat: 'Düz Freze', ball: 'Küre Freze', drill: 'Matkap', tap: 'Kılavuz' }[t.type] || t.type;
+    div.innerHTML = '<div><div class="name">' + escapeHtml(t.name) + '</div><div class="sub">' + typeName + '</div></div>' +
+      '<div style="display:flex;align-items:center;gap:10px;"><span class="badge">Ø' + t.dia + '</span>' +
+      '<span class="del" onclick="event.stopPropagation();removeTool(' + t.id + ')">✕</span></div>';
+    div.onclick = () => selectTool(t);
+    list.appendChild(div);
+  });
+  localStorage.setItem('fanuc_tools', JSON.stringify(tools));
+}
+
+function selectTool(t) {
+  activeToolId = t.id;
+  const map = { pocket: 'pocTool', contour: 'cntTool', circle: 'cirTool',
+    face: 'faceTool', slot: 'slotTool', dxf: 'dxfTool' };
+  if (map[currentOp]) $(map[currentOp]).value = t.dia;
+  if (currentOp === 'drill' && t.type === 'drill') $('drillDia').value = t.dia;
+  if (currentOp === 'tap' && t.type === 'tap') $('tapDia').value = t.dia;
+  renderTools();
+  toast('Takım: ' + t.name);
+}
+
+function addTool() {
+  const name = $('newToolName').value.trim();
+  const dia = parseFloat($('newToolDia').value);
+  const type = $('newToolType').value;
+  if (!name || !dia) return toast('Ad ve çap zorunlu');
+  tools.push({ id: Date.now(), name, dia, type });
+  $('newToolName').value = '';
+  hideAddTool();
+  renderTools();
+  toast('Takım eklendi');
+}
+
+function removeTool(id) {
+  tools = tools.filter(t => t.id !== id);
+  if (activeToolId === id) activeToolId = null;
+  renderTools();
+}
+
+function clearTools() {
+  if (confirm('Tüm takımlar silinsin mi?')) {
+    tools = []; activeToolId = null; renderTools();
+  }
+}
+
+function showAddTool() { $('addToolForm').classList.remove('hidden'); }
+function hideAddTool() { $('addToolForm').classList.add('hidden'); }
+
+// ---- PROGRAM KÜTÜPHANESİ ----
+const LIB_KEY = 'fanuc_vmc_library';
+let library = JSON.parse(localStorage.getItem(LIB_KEY) || '[]');
+
+function saveLibrary() {
+  localStorage.setItem(LIB_KEY, JSON.stringify(library));
+}
+
+function collectParams() {
+  const p = {};
+  ['progNo','wcs','toolNo','offsetNo','spindle','feed','safeZ','startZ',
+   'stkX','stkY','stkZ','stkCx','stkCy','stkTopZ',
+   'drillDia','drillDepth','drillHoles','drillCycle','peckQ',
+   'tapDia','tapPitch','tapDepth','tapHoles',
+   'pocX','pocY','pocZ','pocTool','pocStep','pocLayer','pocCx','pocCy',
+   'faceX','faceY','faceTool','faceStep','faceZ','faceX0','faceY0',
+   'cntX','cntY','cntZ','cntTool','cntLayer','cntCx','cntCy','cntComp',
+   'cirD','cirZ','cirTool','cirLayer','cirCx','cirCy',
+   'slotL','slotW','slotZ','slotTool','slotX','slotY','slotDir',
+   'dxfZ','dxfLayer','dxfTool','dxfScale','dxfComp'].forEach(k => {
+    const el = $(k);
+    if (el) p[k] = el.value;
+  });
+  const chk = $('dxfOffset');
+  if (chk) p.dxfOffset = chk.checked;
+  p.currentOp = currentOp;
+  p.currentPlane = currentPlane;
+  return p;
+}
+
+function applyParams(p) {
+  if (!p) return;
+  Object.keys(p).forEach(k => {
+    const el = $(k);
+    if (el && k !== 'currentOp' && k !== 'currentPlane') {
+      if (el.type === 'checkbox') el.checked = p[k];
+      else el.value = p[k];
+    }
+  });
+  if (p.currentOp) {
+    currentOp = p.currentOp;
+    document.querySelectorAll('.op-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.op === currentOp);
+    });
+    document.querySelectorAll('[id^="pane-"]').forEach(el => el.classList.add('hidden'));
+    const pane = $('pane-' + currentOp);
+    if (pane) pane.classList.remove('hidden');
+  }
+  if (p.currentPlane) {
+    currentPlane = p.currentPlane;
+    document.querySelectorAll('.plane-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.plane === currentPlane);
+    });
+  }
+}
+
+function saveToLibrary() {
+  const name = $('saveJobName').value.trim();
+  if (!name) { toast('İş adı girin'); $('saveJobName').focus(); return; }
+  const note = $('saveJobNote').value.trim();
+  const now = new Date();
+  const existing = library.findIndex(j => j.name.toLowerCase() === name.toLowerCase());
+  const job = {
+    id: existing >= 0 ? library[existing].id : Date.now(),
+    name, note, op: currentOp, plane: currentPlane,
+    date: now.toLocaleString('tr-TR'),
+    dateISO: now.toISOString(),
+    params: collectParams()
+  };
+  if (existing >= 0) {
+    if (!confirm('"' + name + '" zaten var. Üzerine yazılsın mı?')) return;
+    library[existing] = job;
+    toast('✓ Güncellendi');
+  } else {
+    library.unshift(job);
+    toast('✓ Kaydedildi');
+  }
+  saveLibrary(); renderLibrary();
+  $('saveJobName').value = ''; $('saveJobNote').value = '';
+}
+
+function renderLibrary() {
+  const list = $('libraryList');
+  if (!list) return;
+  const q = ($('libSearch').value || '').toLowerCase().trim();
+  let items = library;
+  if (q) items = library.filter(j =>
+    j.name.toLowerCase().includes(q) ||
+    (j.note && j.note.toLowerCase().includes(q)));
+  if (items.length === 0) {
+    list.innerHTML = '<p class="info" style="text-align:center;padding:20px;">Kayıt yok</p>';
+    return;
+  }
+  const opNames = { drill:'Delik', tap:'Kılavuz', pocket:'Cep', face:'Yüzey',
+    contour:'Kontur', circle:'Daire', slot:'Kanal', dxf:'DXF' };
+  list.innerHTML = items.map(j =>
+    '<div class="lib-item"><div style="display:flex;justify-content:space-between;gap:8px;">' +
+    '<div style="flex:1;min-width:0;">' +
+    '<div class="lib-name">' + escapeHtml(j.name) + '</div>' +
+    '<div class="lib-meta">' + (opNames[j.op] || j.op) + ' · ' + j.date + '</div>' +
+    (j.note ? '<div class="lib-note">' + escapeHtml(j.note) + '</div>' : '') +
+    '</div><div class="lib-actions">' +
+    '<button onclick="loadFromLibrary(' + j.id + ')">Yükle</button>' +
+    '<button class="del" onclick="deleteFromLibrary(' + j.id + ')">Sil</button>' +
+    '</div></div></div>'
+  ).join('');
+}
+
+function loadFromLibrary(id) {
+  const job = library.find(j => j.id === id);
+  if (!job) return;
+  if (!confirm('"' + job.name + '" yüklensin mi?')) return;
+  applyParams(job.params);
+  toast('✓ Yüklendi');
+  const pt = document.querySelector('.tab-btn[data-tab="params"]');
+  if (pt) pt.click();
+}
+
+function deleteFromLibrary(id) {
+  const job = library.find(j => j.id === id);
+  if (!job) return;
+  if (!confirm('"' + job.name + '" silinsin mi?')) return;
+  library = library.filter(j => j.id !== id);
+  saveLibrary(); renderLibrary();
+  toast('Silindi');
+}
+
+function exportLibrary() {
+  if (library.length === 0) return toast('Kütüphane boş');
+  const blob = new Blob([JSON.stringify(library, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vmc-kutuphane-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('✓ ' + library.length + ' iş dışa aktarıldı');
+}
+
+function importLibrary() { $('libraryImportFile').click(); }
+
+function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) throw new Error('Geçersiz format');
+      let added = 0;
+      imported.forEach(job => {
+        if (!job.name || !job.params) return;
+        if (library.find(j => j.name === job.name)) {
+          job.id = Date.now() + Math.random();
+          job.name += ' (kopya)';
+        }
+        library.unshift(job);
+        added++;
+      });
+      saveLibrary(); renderLibrary();
+      toast('✓ ' + added + ' iş içe aktarıldı');
+    } catch (err) { toast('✗ Hata: ' + err.message); }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+</script>
