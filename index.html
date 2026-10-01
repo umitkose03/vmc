@@ -9,514 +9,407 @@
 <meta name="theme-color" content="#1e1e2e">
 <title>Fanuc VMC Pro</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html { height: 100%; -webkit-text-size-adjust: 100%; }
-  body {
-    font-family: -apple-system, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
-    background: #1e1e2e; color: #e0e0e0;
-    height: 100vh; height: 100dvh; overflow: hidden;
-    overscroll-behavior: none;
-    -webkit-user-select: none; user-select: none;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-  header {
-    background: #15151f; padding: 10px 14px;
-    display: flex; align-items: center; gap: 8px;
-    border-bottom: 1px solid #333; flex-shrink: 0;
-  }
-  header h1 { font-size: 15px; color: #4fc3f7; flex: 1; font-weight: 700; }
-  header .badge {
-    font-size: 10px; color: #81c784; background: #1e4d2c;
-    padding: 3px 8px; border-radius: 10px; font-weight: bold;
-  }
-  .main-tabs {
-    display: flex; background: #15151f;
-    border-bottom: 2px solid #333;
-    flex-shrink: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;
-  }
-  .main-tabs::-webkit-scrollbar { display: none; }
-  .main-tabs button {
-    flex: 1; min-width: 68px; padding: 12px 6px;
-    background: transparent; color: #888; border: none;
-    font-size: 11px; font-weight: 600; cursor: pointer;
-    border-bottom: 2px solid transparent;
-    white-space: nowrap; font-family: inherit;
-  }
-  .main-tabs button.active { color: #4fc3f7; border-bottom-color: #4fc3f7; }
-  .content {
-    flex: 1; overflow-y: auto; overflow-x: hidden;
-    -webkit-overflow-scrolling: touch; padding-bottom: 100px;
-  }
-  .tab-pane { display: none; padding: 14px; }
-  .tab-pane.active { display: block; }
-  h2 {
-    font-size: 11px; color: #81c784; text-transform: uppercase;
-    letter-spacing: 1.2px; margin: 16px 0 8px;
-    padding-bottom: 5px; border-bottom: 1px solid #2a2a3c; font-weight: 700;
-  }
-  h2:first-child { margin-top: 0; }
-  label { display: block; font-size: 12px; color: #b0b0c0; margin: 10px 0 4px; font-weight: 500; }
-  input, select, textarea {
-    width: 100%; padding: 12px 12px; background: #1a1a28;
-    color: #fff; border: 1px solid #444; border-radius: 8px;
-    font-size: 16px; font-family: inherit;
-    -webkit-appearance: none; appearance: none;
-  }
-  input[type=number]::-webkit-inner-spin-button,
-  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
-  select {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%23888' d='M6 8L2 4h8z'/></svg>");
-    background-repeat: no-repeat; background-position: right 12px center;
-    padding-right: 32px;
-  }
-  input:focus, select:focus, textarea:focus {
-    outline: none; border-color: #4fc3f7;
-    box-shadow: 0 0 0 3px rgba(79,195,247,0.15);
-  }
-  textarea { font-family: 'SF Mono', Menlo, monospace; font-size: 14px; resize: vertical; -webkit-user-select: text; user-select: text; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  button.primary {
-    width: 100%; padding: 16px; margin-top: 14px;
-    background: linear-gradient(135deg, #4fc3f7, #29b6f6);
-    color: #111; border: none; border-radius: 10px;
-    font-weight: 700; font-size: 16px; cursor: pointer; font-family: inherit;
-  }
-  button.primary:active { transform: scale(0.98); opacity: 0.9; }
-  button.secondary {
-    width: 100%; padding: 14px; margin-top: 10px;
-    background: #3a3a4c; color: #fff; border: none;
-    border-radius: 10px; font-weight: 600; font-size: 14px;
-    cursor: pointer; font-family: inherit;
-  }
-  button.secondary:active { background: #4a4a5c; }
-  button.danger { background: #e57373; color: #111; }
-  button.small { padding: 10px 14px; font-size: 13px; width: auto; margin: 0; border-radius: 8px; }
-  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-  .btn-row button { margin: 0; }
-  .op-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-  .op-grid button {
-    padding: 14px 8px; background: #2a2a3c; color: #ccc;
-    border: 2px solid transparent; border-radius: 10px;
-    font-size: 13px; font-weight: 600; cursor: pointer;
-    font-family: inherit; transition: all .15s;
-  }
-  .op-grid button.active { background: #1e3a5c; color: #4fc3f7; border-color: #4fc3f7; }
-  .plane-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  .plane-grid button {
-    padding: 12px 6px; background: #2a2a3c; color: #ccc;
-    border: 2px solid transparent; border-radius: 8px;
-    font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
-  }
-  .plane-grid button.active { background: #1e4d2c; color: #81c784; border-color: #81c784; }
-  .tool-item, .lib-item {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 14px; background: #1a1a28;
-    border-radius: 10px; margin-bottom: 8px;
-    border: 2px solid transparent; cursor: pointer; transition: all .15s;
-  }
-  .tool-item.active { background: #1e3a5c; border-color: #4fc3f7; }
-  .tool-item .name { font-weight: 600; font-size: 14px; }
-  .tool-item .sub { font-size: 11px; color: #888; margin-top: 2px; }
-  .tool-item .badge { background: #4fc3f7; color: #111; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12px; }
-  .tool-item .del { color: #e57373; padding: 6px 10px; font-size: 18px; cursor: pointer; font-weight: bold; }
-  .lib-item {
-    flex-direction: column; align-items: stretch;
-    border-left: 4px solid #4fc3f7;
-  }
-  pre#gcode {
-    background: #000; color: #00ff88; padding: 14px; border-radius: 10px;
-    font-family: 'SF Mono', Menlo, monospace; font-size: 12px;
-    line-height: 1.5; white-space: pre; overflow: auto; max-height: 60vh;
-    -webkit-user-select: text; user-select: text;
-  }
-  #canvasWrap {
-    position: relative; background: #0a0a15;
-    border-radius: 10px; overflow: hidden;
-    height: 55vh; touch-action: none;
-  }
-  #canvas { width: 100%; height: 100%; display: block; }
-  .view-btns {
-    position: absolute; top: 8px; right: 8px;
-    display: flex; gap: 5px; flex-wrap: wrap;
-    justify-content: flex-end; max-width: 65%;
-  }
-  .view-btns button {
-    padding: 6px 10px; font-size: 11px;
-    background: rgba(79,195,247,.9); color: #111;
-    border: none; border-radius: 6px; font-weight: 700; font-family: inherit;
-  }
-  .ba-toggle {
-    display: flex; gap: 6px; margin-top: 10px;
-    background: #1a1a28; padding: 6px; border-radius: 10px;
-  }
-  .ba-toggle button {
-    flex: 1; padding: 12px; font-size: 14px;
-    background: transparent; color: #888; border: none;
-    border-radius: 6px; font-weight: 700; font-family: inherit;
-    cursor: pointer; transition: all .15s;
-  }
-  .ba-toggle button.active {
-    background: #4fc3f7; color: #111;
-  }
-  .ba-slider {
-    margin-top: 10px; display: flex; align-items: center; gap: 10px;
-    background: #1a1a28; padding: 10px; border-radius: 10px;
-  }
-  .ba-slider input[type=range] {
-    flex: 1; padding: 0; height: 28px;
-    background: transparent; -webkit-appearance: none; appearance: none;
-  }
-  .ba-slider input[type=range]::-webkit-slider-runnable-track {
-    height: 6px; background: linear-gradient(90deg, #555, #4fc3f7); border-radius: 3px;
-  }
-  .ba-slider input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 24px; height: 24px;
-    background: #fff; border-radius: 50%; margin-top: -9px;
-    cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.5);
-  }
-  .info-panel {
-    background: #1a1a28; border-radius: 10px; padding: 12px;
-    margin-top: 10px; font-size: 12px; line-height: 1.7;
-  }
-  .info-panel .kv {
-    display: flex; justify-content: space-between;
-    border-bottom: 1px dashed #2a2a3c; padding: 4px 0;
-  }
-  .info-panel .kv:last-child { border-bottom: none; }
-  .info-panel .k { color: #888; }
-  .info-panel .v { color: #4fc3f7; font-weight: 700; font-family: monospace; }
-  .dxf-status {
-    padding: 10px 12px; border-radius: 8px;
-    background: #1a1a28; margin-top: 8px;
-    font-size: 12px; color: #81c784;
-    border-left: 4px solid #81c784;
-  }
-  .dxf-status.error { color: #e57373; border-left-color: #e57373; }
-  .info { font-size: 11px; color: #888; margin-top: 6px; line-height: 1.5; }
-  .hidden { display: none !important; }
-  #toast {
-    position: fixed; bottom: calc(20px + env(safe-area-inset-bottom));
-    left: 50%; transform: translateX(-50%) translateY(20px);
-    background: #4fc3f7; color: #111;
-    padding: 12px 22px; border-radius: 24px;
-    font-size: 14px; font-weight: 700;
-    opacity: 0; transition: all .3s;
-    pointer-events: none; z-index: 1000;
-    box-shadow: 0 6px 20px rgba(0,0,0,.5); white-space: nowrap;
-    max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
-  }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .loading {
-    display: inline-block; width: 14px; height: 14px;
-    border: 2px solid #4fc3f7; border-top-color: transparent;
-    border-radius: 50%; animation: spin 0.8s linear infinite;
-    vertical-align: middle; margin-right: 8px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  input[type=checkbox] {
-    width: 22px; height: 22px; -webkit-appearance: none; appearance: none;
-    background: #1a1a28; border: 2px solid #444; border-radius: 5px;
-    position: relative; cursor: pointer; flex-shrink: 0;
-  }
-  input[type=checkbox]:checked { background: #4fc3f7; border-color: #4fc3f7; }
-  input[type=checkbox]:checked::after {
-    content: '✓'; position: absolute;
-    top: 50%; left: 50%; transform: translate(-50%, -50%);
-    color: #111; font-weight: bold; font-size: 14px;
-  }
-  input[type=file] { padding: 10px; font-size: 14px; -webkit-appearance: none; }
-  input[type=file]::-webkit-file-upload-button {
-    background: #4fc3f7; color: #111; border: none;
-    padding: 10px 16px; border-radius: 6px;
-    font-weight: 700; font-size: 13px; margin-right: 10px;
-    cursor: pointer; font-family: inherit;
-  }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,'SF Pro Text','Segoe UI',Roboto,sans-serif;background:#1e1e2e;color:#e0e0e0;height:100vh;height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+header{background:#15151f;padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #333;flex-shrink:0}
+header h1{font-size:15px;color:#4fc3f7;flex:1;font-weight:700}
+header .badge{font-size:10px;color:#81c784;background:#1e4d2c;padding:3px 8px;border-radius:10px;font-weight:bold}
+.main-tabs{display:flex;background:#15151f;border-bottom:2px solid #333;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.main-tabs::-webkit-scrollbar{display:none}
+.main-tabs button{flex:1;min-width:66px;padding:12px 4px;background:transparent;color:#888;border:none;font-size:10px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.main-tabs button.active{color:#4fc3f7;border-bottom-color:#4fc3f7}
+.content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:100px}
+.tab-pane{display:none;padding:14px}
+.tab-pane.active{display:block}
+h2{font-size:11px;color:#81c784;text-transform:uppercase;letter-spacing:1.2px;margin:16px 0 8px;padding-bottom:5px;border-bottom:1px solid #2a2a3c;font-weight:700}
+h2:first-child{margin-top:0}
+label{display:block;font-size:12px;color:#b0b0c0;margin:10px 0 4px;font-weight:500}
+input,select,textarea{width:100%;padding:12px;background:#1a1a28;color:#fff;border:1px solid #444;border-radius:8px;font-size:16px;font-family:inherit;-webkit-appearance:none;appearance:none}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%23888' d='M6 8L2 4h8z'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#4fc3f7;box-shadow:0 0 0 3px rgba(79,195,247,0.15)}
+textarea{font-family:'SF Mono',Menlo,monospace;font-size:14px;resize:vertical;-webkit-user-select:text;user-select:text}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button.primary{width:100%;padding:16px;margin-top:14px;background:linear-gradient(135deg,#4fc3f7,#29b6f6);color:#111;border:none;border-radius:10px;font-weight:700;font-size:16px;cursor:pointer;font-family:inherit}
+button.primary:active{transform:scale(0.98);opacity:0.9}
+button.secondary{width:100%;padding:14px;margin-top:10px;background:#3a3a4c;color:#fff;border:none;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit}
+button.secondary:active{background:#4a4a5c}
+button.danger{background:#e57373;color:#111}
+button.small{padding:10px 14px;font-size:13px;width:auto;margin:0;border-radius:8px}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.btn-row button{margin:0}
+.op-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.op-grid button{padding:14px 8px;background:#2a2a3c;color:#ccc;border:2px solid transparent;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.op-grid button.active{background:#1e3a5c;color:#4fc3f7;border-color:#4fc3f7}
+.plane-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.plane-grid button{padding:12px 6px;background:#2a2a3c;color:#ccc;border:2px solid transparent;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.plane-grid button.active{background:#1e4d2c;color:#81c784;border-color:#81c784}
+.tool-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#1a1a28;border-radius:10px;margin-bottom:8px;border:2px solid transparent;cursor:pointer;transition:all .15s}
+.tool-item.active{background:#1e3a5c;border-color:#4fc3f7}
+.tool-item .name{font-weight:600;font-size:14px}
+.tool-item .sub{font-size:11px;color:#888;margin-top:2px}
+.tool-item .badge{background:#4fc3f7;color:#111;padding:4px 10px;border-radius:12px;font-weight:700;font-size:12px}
+.tool-item .del{color:#e57373;padding:6px 10px;font-size:18px;cursor:pointer;font-weight:bold}
+.lib-item{background:#1a1a28;border-radius:10px;padding:12px;margin-bottom:8px;border-left:4px solid #4fc3f7}
+.lib-item .lib-name{font-weight:700;font-size:14px;color:#fff;word-break:break-word}
+.lib-item .lib-meta{font-size:11px;color:#888;margin-top:3px}
+.lib-item .lib-note{font-size:11px;color:#b0b0c0;margin-top:5px;font-style:italic;word-break:break-word}
+.lib-item .lib-actions{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.lib-item .lib-actions button{background:#4fc3f7;color:#111;border:none;border-radius:5px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.lib-item .lib-actions button.del{background:#e57373}
+pre#gcode{background:#000;color:#00ff88;padding:14px;border-radius:10px;font-family:'SF Mono',Menlo,monospace;font-size:12px;line-height:1.5;white-space:pre;overflow:auto;max-height:60vh;-webkit-user-select:text;user-select:text}
+#canvasWrap{position:relative;background:#0a0a15;border-radius:10px;overflow:hidden;height:50vh;touch-action:none}
+#canvas{width:100%;height:100%;display:block}
+.view-btns{position:absolute;top:8px;right:8px;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:65%}
+.view-btns button{padding:6px 10px;font-size:11px;background:rgba(79,195,247,.9);color:#111;border:none;border-radius:6px;font-weight:700;font-family:inherit}
+.ba-toggle{display:flex;gap:6px;margin-top:10px;background:#1a1a28;padding:6px;border-radius:10px}
+.ba-toggle button{flex:1;padding:12px;font-size:14px;background:transparent;color:#888;border:none;border-radius:6px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s}
+.ba-toggle button.active{background:#4fc3f7;color:#111}
+.info-panel{background:#1a1a28;border-radius:10px;padding:12px;margin-top:10px;font-size:12px;line-height:1.7}
+.info-panel .kv{display:flex;justify-content:space-between;border-bottom:1px dashed #2a2a3c;padding:4px 0}
+.info-panel .kv:last-child{border-bottom:none}
+.info-panel .k{color:#888}
+.info-panel .v{color:#4fc3f7;font-weight:700;font-family:monospace}
+.dxf-status{padding:10px 12px;border-radius:8px;background:#1a1a28;margin-top:8px;font-size:12px;color:#81c784;border-left:4px solid #81c784}
+.dxf-status.error{color:#e57373;border-left-color:#e57373}
+.info{font-size:11px;color:#888;margin-top:6px;line-height:1.5}
+.hidden{display:none !important}
+#toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#4fc3f7;color:#111;padding:12px 22px;border-radius:24px;font-size:14px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;z-index:1000;box-shadow:0 6px 20px rgba(0,0,0,.5);white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.loading{display:inline-block;width:14px;height:14px;border:2px solid #4fc3f7;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+input[type=checkbox]{width:22px;height:22px;-webkit-appearance:none;appearance:none;background:#1a1a28;border:2px solid #444;border-radius:5px;position:relative;cursor:pointer;flex-shrink:0}
+input[type=checkbox]:checked{background:#4fc3f7;border-color:#4fc3f7}
+input[type=checkbox]:checked::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#111;font-weight:bold;font-size:14px}
+input[type=file]{padding:10px;font-size:14px;-webkit-appearance:none}
+input[type=file]::-webkit-file-upload-button{background:#4fc3f7;color:#111;border:none;padding:10px 16px;border-radius:6px;font-weight:700;font-size:13px;margin-right:10px;cursor:pointer;font-family:inherit}
 </style>
 </head>
 <body>
 
 <div id="app">
-  <header>
-    <h1>⚙️ Fanuc VMC Pro</h1>
-    <span class="badge">OFFLINE</span>
-  </header>
+<header><h1>⚙️ Fanuc VMC Pro</h1><span class="badge">OFFLINE</span></header>
 
-  <div class="main-tabs">
-    <button class="tab-btn active" data-tab="params">Parametre</button>
-    <button class="tab-btn" data-tab="tools">Takım</button>
-    <button class="tab-btn" data-tab="library">📚 Kütüphane</button>
-    <button class="tab-btn" data-tab="sim">Görsel</button>
-    <button class="tab-btn" data-tab="ballmill">🏀 Ballmill</button>
-    <button class="tab-btn" data-tab="code">G-Kod</button>
-  </div>
+<div class="main-tabs">
+<button class="tab-btn active" data-tab="params">Parametre</button>
+<button class="tab-btn" data-tab="tools">Takım</button>
+<button class="tab-btn" data-tab="library">📚 Kütüphane</button>
+<button class="tab-btn" data-tab="sim">Görsel</button>
+<button class="tab-btn" data-tab="ballmill">🏀 Ballmill</button>
+<button class="tab-btn" data-tab="code">G-Kod</button>
+</div>
 
-  <div class="content">
-
-    <!-- ================= PARAMETRE ================= -->
-    <div class="tab-pane active" id="tab-params">
-
-      <h2>Düzlem</h2>
-      <div class="plane-grid">
-        <button class="plane-btn active" data-plane="G17">G17 XY</button>
-        <button class="plane-btn" data-plane="G18">G18 ZX</button>
-        <button class="plane-btn" data-plane="G19">G19 YZ</button>
-      </div>
-
-      <h2>Operasyon</h2>
-      <div class="op-grid">
-        <button class="op-btn active" data-op="drill">Delik</button>
-        <button class="op-btn" data-op="tap">Kılavuz</button>
-        <button class="op-btn" data-op="pocket">Cep</button>
-        <button class="op-btn" data-op="face">Yüzey</button>
-        <button class="op-btn" data-op="contour">Kontur</button>
-        <button class="op-btn" data-op="circle">Daire</button>
-        <button class="op-btn" data-op="slot">Kanal</button>
-        <button class="op-btn" data-op="dxf">DXF</button>
-      </div>
-
-      <h2>Genel Ayarlar</h2>
-      <div class="row">
-        <div><label>Program No</label><input type="number" id="progNo" value="1000" inputmode="numeric"></div>
-        <div><label>İş Koordinatı</label>
-          <select id="wcs">
-            <option>G54</option><option>G55</option><option>G56</option>
-            <option>G57</option><option>G58</option><option>G59</option>
-          </select>
-        </div>
-      </div>
-      <div class="row">
-        <div><label>T No</label><input type="number" id="toolNo" value="1" inputmode="numeric"></div>
-        <div><label>H/D Offset</label><input type="number" id="offsetNo" value="1" inputmode="numeric"></div>
-      </div>
-      <div class="row">
-        <div><label>Spindle (S)</label><input type="number" id="spindle" value="2000" inputmode="numeric"></div>
-        <div><label>İlerleme (F)</label><input type="number" id="feed" value="200" inputmode="numeric"></div>
-      </div>
-      <div class="row">
-        <div><label>Güvenli Z</label><input type="number" id="safeZ" value="50" inputmode="decimal"></div>
-        <div><label>Başlangıç Z</label><input type="number" id="startZ" value="5" inputmode="decimal"></div>
-      </div>
-
-      <h2>Ham Madde (Stock)</h2>
-      <div class="row">
-        <div><label>Genişlik X (mm)</label><input type="number" id="stkX" value="120" inputmode="decimal"></div>
-        <div><label>Boy Y (mm)</label><input type="number" id="stkY" value="80" inputmode="decimal"></div>
-      </div>
-      <div class="row">
-        <div><label>Yükseklik Z (mm)</label><input type="number" id="stkZ" value="20" inputmode="decimal"></div>
-        <div><label>Merkez X</label><input type="number" id="stkCx" value="0" inputmode="decimal"></div>
-      </div>
-      <div class="row">
-        <div><label>Merkez Y</label><input type="number" id="stkCy" value="0" inputmode="decimal"></div>
-        <div><label>Üst Z (mm)</label><input type="number" id="stkTopZ" value="0" inputmode="decimal"></div>
-      </div>
-      <p class="info">Ham madde, Görsel sekmesinde yarı saydam gri kutu olarak gösterilir.</p>
-
-      <div id="pane-drill">
-        <h2>Delik Delme</h2>
-        <div class="row">
-          <div><label>Çap</label><input type="number" id="drillDia" value="10" step="0.1" inputmode="decimal"></div>
-          <div><label>Derinlik</label><input type="number" id="drillDepth" value="20" step="0.1" inputmode="decimal"></div>
-        </div>
-        <label>Merkezler (her satır: X,Y)</label>
-        <textarea id="drillHoles" rows="5">-40,-25
+<div class="content">
+<div class="tab-pane active" id="tab-params">
+<h2>Düzlem</h2>
+<div class="plane-grid">
+<button class="plane-btn active" data-plane="G17">G17 XY</button>
+<button class="plane-btn" data-plane="G18">G18 ZX</button>
+<button class="plane-btn" data-plane="G19">G19 YZ</button>
+</div>
+<h2>Operasyon</h2>
+<div class="op-grid">
+<button class="op-btn active" data-op="drill">Delik</button>
+<button class="op-btn" data-op="tap">Kılavuz</button>
+<button class="op-btn" data-op="pocket">Cep</button>
+<button class="op-btn" data-op="face">Yüzey</button>
+<button class="op-btn" data-op="contour">Kontur</button>
+<button class="op-btn" data-op="circle">Daire</button>
+<button class="op-btn" data-op="slot">Kanal</button>
+<button class="op-btn" data-op="dxf">DXF</button>
+</div>
+<h2>Genel Ayarlar</h2>
+<div class="row">
+<div><label>Program No</label><input type="number" id="progNo" value="1000" inputmode="numeric"></div>
+<div><label>İş Koordinatı</label>
+<select id="wcs"><option>G54</option><option>G55</option><option>G56</option><option>G57</option><option>G58</option><option>G59</option></select>
+</div>
+</div>
+<div class="row">
+<div><label>T No</label><input type="number" id="toolNo" value="1" inputmode="numeric"></div>
+<div><label>H/D Offset</label><input type="number" id="offsetNo" value="1" inputmode="numeric"></div>
+</div>
+<div class="row">
+<div><label>Spindle (S)</label><input type="number" id="spindle" value="2000" inputmode="numeric"></div>
+<div><label>İlerleme (F)</label><input type="number" id="feed" value="200" inputmode="numeric"></div>
+</div>
+<div class="row">
+<div><label>Güvenli Z</label><input type="number" id="safeZ" value="50" inputmode="decimal"></div>
+<div><label>Başlangıç Z</label><input type="number" id="startZ" value="5" inputmode="decimal"></div>
+</div>
+<h2>Ham Madde (Stock)</h2>
+<div class="row">
+<div><label>Genişlik X (mm)</label><input type="number" id="stkX" value="120" inputmode="decimal"></div>
+<div><label>Boy Y (mm)</label><input type="number" id="stkY" value="80" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Yükseklik Z (mm)</label><input type="number" id="stkZ" value="20" inputmode="decimal"></div>
+<div><label>Merkez X</label><input type="number" id="stkCx" value="0" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Merkez Y</label><input type="number" id="stkCy" value="0" inputmode="decimal"></div>
+<div><label>Üst Z (mm)</label><input type="number" id="stkTopZ" value="0" inputmode="decimal"></div>
+</div>
+<div id="pane-drill">
+<h2>Delik Delme</h2>
+<div class="row">
+<div><label>Çap</label><input type="number" id="drillDia" value="10" step="0.1" inputmode="decimal"></div>
+<div><label>Derinlik</label><input type="number" id="drillDepth" value="20" step="0.1" inputmode="decimal"></div>
+</div>
+<label>Merkezler (her satır: X,Y)</label>
+<textarea id="drillHoles" rows="5">-40,-25
 0,-25
 40,-25
 -40,25
 0,25
 40,25</textarea>
-        <div class="row" style="margin-top:10px;">
-          <div><label>Çevrim</label>
-            <select id="drillCycle">
-              <option value="G81">G81 Standart</option>
-              <option value="G83">G83 Peck</option>
-              <option value="G73">G73 Yüksek Hız</option>
-            </select>
-          </div>
-          <div id="peckRow" class="hidden">
-            <label>Q (Peck mm)</label>
-            <input type="number" id="peckQ" value="3" step="0.1" inputmode="decimal">
-          </div>
-        </div>
-      </div>
-
-      <div id="pane-tap" class="hidden">
-        <h2>Kılavuz Çekme</h2>
-        <div class="row">
-          <div><label>Çap</label><input type="number" id="tapDia" value="8" step="0.1" inputmode="decimal"></div>
-          <div><label>Adım</label><input type="number" id="tapPitch" value="1.25" step="0.01" inputmode="decimal"></div>
-        </div>
-        <label>Derinlik</label>
-        <input type="number" id="tapDepth" value="15" inputmode="decimal">
-        <label>Merkezler</label>
-        <textarea id="tapHoles" rows="4">-40,-25
+<div class="row" style="margin-top:10px;">
+<div><label>Çevrim</label>
+<select id="drillCycle"><option value="G81">G81 Standart</option><option value="G83">G83 Peck</option><option value="G73">G73 Yüksek Hız</option></select>
+</div>
+<div id="peckRow" class="hidden"><label>Q (Peck mm)</label><input type="number" id="peckQ" value="3" step="0.1" inputmode="decimal"></div>
+</div>
+</div>
+<div id="pane-tap" class="hidden">
+<h2>Kılavuz Çekme</h2>
+<div class="row">
+<div><label>Çap</label><input type="number" id="tapDia" value="8" step="0.1" inputmode="decimal"></div>
+<div><label>Adım</label><input type="number" id="tapPitch" value="1.25" step="0.01" inputmode="decimal"></div>
+</div>
+<label>Derinlik</label>
+<input type="number" id="tapDepth" value="15" inputmode="decimal">
+<label>Merkezler</label>
+<textarea id="tapHoles" rows="4">-40,-25
 0,-25
 40,-25</textarea>
-      </div>
+</div>
+<div id="pane-pocket" class="hidden">
+<h2>Dikdörtgen Cep</h2>
+<div class="row">
+<div><label>Genişlik X</label><input type="number" id="pocX" value="80" inputmode="decimal"></div>
+<div><label>Boy Y</label><input type="number" id="pocY" value="50" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Derinlik</label><input type="number" id="pocZ" value="10" inputmode="decimal"></div>
+<div><label>Kesici Çap</label><input type="number" id="pocTool" value="12" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Stepover %</label><input type="number" id="pocStep" value="60" inputmode="numeric"></div>
+<div><label>Katman (mm)</label><input type="number" id="pocLayer" value="3" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Merkez X</label><input type="number" id="pocCx" value="0" inputmode="decimal"></div>
+<div><label>Merkez Y</label><input type="number" id="pocCy" value="0" inputmode="decimal"></div>
+</div>
+</div>
+<div id="pane-face" class="hidden">
+<h2>Yüzey Frezeleme</h2>
+<div class="row">
+<div><label>Genişlik</label><input type="number" id="faceX" value="120" inputmode="decimal"></div>
+<div><label>Boy</label><input type="number" id="faceY" value="80" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Kesici Çap</label><input type="number" id="faceTool" value="63" inputmode="decimal"></div>
+<div><label>Stepover %</label><input type="number" id="faceStep" value="70" inputmode="numeric"></div>
+</div>
+<div class="row">
+<div><label>Z Seviye</label><input type="number" id="faceZ" value="0" inputmode="decimal"></div>
+<div><label>Başlangıç X</label><input type="number" id="faceX0" value="-60" inputmode="decimal"></div>
+</div>
+<label>Başlangıç Y</label>
+<input type="number" id="faceY0" value="-40" inputmode="decimal">
+</div>
+<div id="pane-contour" class="hidden">
+<h2>Dikdörtgen Kontur</h2>
+<div class="row">
+<div><label>Genişlik</label><input type="number" id="cntX" value="100" inputmode="decimal"></div>
+<div><label>Boy</label><input type="number" id="cntY" value="60" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Derinlik</label><input type="number" id="cntZ" value="10" inputmode="decimal"></div>
+<div><label>Kesici Çap</label><input type="number" id="cntTool" value="12" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Katman</label><input type="number" id="cntLayer" value="2" inputmode="decimal"></div>
+<div><label>Merkez X</label><input type="number" id="cntCx" value="0" inputmode="decimal"></div>
+</div>
+<label>Merkez Y</label>
+<input type="number" id="cntCy" value="0" inputmode="decimal">
+<label>Kompanzasyon</label>
+<select id="cntComp"><option value="G41">G41 Sol (Climb)</option><option value="G42">G42 Sağ</option><option value="none">Yok</option></select>
+</div>
+<div id="pane-circle" class="hidden">
+<h2>Daire Cep</h2>
+<div class="row">
+<div><label>Daire Çap</label><input type="number" id="cirD" value="60" inputmode="decimal"></div>
+<div><label>Derinlik</label><input type="number" id="cirZ" value="10" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Kesici Çap</label><input type="number" id="cirTool" value="12" inputmode="decimal"></div>
+<div><label>Katman</label><input type="number" id="cirLayer" value="2" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Merkez X</label><input type="number" id="cirCx" value="0" inputmode="decimal"></div>
+<div><label>Merkez Y</label><input type="number" id="cirCy" value="0" inputmode="decimal"></div>
+</div>
+</div>
+<div id="pane-slot" class="hidden">
+<h2>Kanal</h2>
+<div class="row">
+<div><label>Uzunluk</label><input type="number" id="slotL" value="80" inputmode="decimal"></div>
+<div><label>Genişlik</label><input type="number" id="slotW" value="12" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Derinlik</label><input type="number" id="slotZ" value="8" inputmode="decimal"></div>
+<div><label>Kesici Çap</label><input type="number" id="slotTool" value="10" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Başlangıç X</label><input type="number" id="slotX" value="-40" inputmode="decimal"></div>
+<div><label>Y</label><input type="number" id="slotY" value="0" inputmode="decimal"></div>
+</div>
+<label>Yön</label>
+<select id="slotDir"><option value="X">X ekseninde</option><option value="Y">Y ekseninde</option></select>
+</div>
+<div id="pane-dxf" class="hidden">
+<h2>DXF Kontur</h2>
+<label>DXF Dosyası Seç</label>
+<input type="file" id="dxfFile" accept=".dxf">
+<div id="dxfStatus" class="dxf-status">Dosya bekleniyor...</div>
+<div class="row" style="margin-top:12px;">
+<div><label>Derinlik</label><input type="number" id="dxfZ" value="5" inputmode="decimal"></div>
+<div><label>Katman</label><input type="number" id="dxfLayer" value="2" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Kesici Çap</label><input type="number" id="dxfTool" value="6" inputmode="decimal"></div>
+<div><label>Ölçek</label><input type="number" id="dxfScale" value="1" step="0.1" inputmode="decimal"></div>
+</div>
+<label>Kompanzasyon</label>
+<select id="dxfComp"><option value="G41">G41 Sol</option><option value="G42">G42 Sağ</option><option value="none">Yok</option></select>
+<label style="display:flex;align-items:center;gap:10px;margin-top:14px;"><input type="checkbox" id="dxfOffset" checked><span>Konturu sıfıra taşı</span></label>
+</div>
+<button class="primary" onclick="generate()">🚀 G-Kod Üret</button>
+</div>
 
-      <div id="pane-pocket" class="hidden">
-        <h2>Dikdörtgen Cep</h2>
-        <div class="row">
-          <div><label>Genişlik X</label><input type="number" id="pocX" value="80" inputmode="decimal"></div>
-          <div><label>Boy Y</label><input type="number" id="pocY" value="50" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Derinlik</label><input type="number" id="pocZ" value="10" inputmode="decimal"></div>
-          <div><label>Kesici Çap</label><input type="number" id="pocTool" value="12" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Stepover %</label><input type="number" id="pocStep" value="60" inputmode="numeric"></div>
-          <div><label>Katman (mm)</label><input type="number" id="pocLayer" value="3" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Merkez X</label><input type="number" id="pocCx" value="0" inputmode="decimal"></div>
-          <div><label>Merkez Y</label><input type="number" id="pocCy" value="0" inputmode="decimal"></div>
-        </div>
-      </div>
+<div class="tab-pane" id="tab-tools">
+<h2>Takım Kütüphanesi</h2>
+<div id="toolList"></div>
+<button class="secondary" onclick="showAddTool()">+ Yeni Takım Ekle</button>
+<button class="secondary danger" onclick="clearTools()">Tümünü Sil</button>
+<div id="addToolForm" class="hidden" style="margin-top:14px;padding:14px;background:#1a1a28;border-radius:10px;">
+<h2 style="margin-top:0;">Yeni Takım</h2>
+<label>Ad</label>
+<input id="newToolName" placeholder="örn: Ø12 Düz Freze">
+<div class="row" style="margin-top:10px;">
+<div><label>Çap (mm)</label><input type="number" id="newToolDia" value="12" step="0.1" inputmode="decimal"></div>
+<div><label>Tip</label>
+<select id="newToolType"><option value="flat">Düz Freze</option><option value="ball">Küre (Ballmill)</option><option value="drill">Matkap</option><option value="tap">Kılavuz</option></select>
+</div>
+</div>
+<div class="btn-row">
+<button class="primary" onclick="addTool()" style="margin:0;">Kaydet</button>
+<button class="secondary" onclick="hideAddTool()" style="margin:0;">İptal</button>
+</div>
+</div>
+</div>
 
-      <div id="pane-face" class="hidden">
-        <h2>Yüzey Frezeleme</h2>
-        <div class="row">
-          <div><label>Genişlik</label><input type="number" id="faceX" value="120" inputmode="decimal"></div>
-          <div><label>Boy</label><input type="number" id="faceY" value="80" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Kesici Çap</label><input type="number" id="faceTool" value="63" inputmode="decimal"></div>
-          <div><label>Stepover %</label><input type="number" id="faceStep" value="70" inputmode="numeric"></div>
-        </div>
-        <div class="row">
-          <div><label>Z Seviye</label><input type="number" id="faceZ" value="0" inputmode="decimal"></div>
-          <div><label>Başlangıç X</label><input type="number" id="faceX0" value="-60" inputmode="decimal"></div>
-        </div>
-        <label>Başlangıç Y</label>
-        <input type="number" id="faceY0" value="-40" inputmode="decimal">
-      </div>
+<div class="tab-pane" id="tab-library">
+<h2>📚 Program Kütüphanesi</h2>
+<label>İş Adı</label>
+<input type="text" id="saveJobName" placeholder="örn: Flanş Ø100 6 delik">
+<label>Not (opsiyonel)</label>
+<textarea id="saveJobNote" rows="2" placeholder="Takım, malzeme, özel uyarılar..."></textarea>
+<button class="primary" onclick="saveToLibrary()">💾 Mevcut Ayarları Kaydet</button>
+<h2 style="margin-top:20px;">🔍 Kayıtlı İşler</h2>
+<input type="text" id="libSearch" placeholder="Ara..." oninput="renderLibrary()">
+<div id="libraryList" style="margin-top:10px;"></div>
+<h2 style="margin-top:20px;">💾 Yedekleme</h2>
+<div class="btn-row">
+<button class="secondary" onclick="exportLibrary()">📤 Dışa Aktar</button>
+<button class="secondary" onclick="importLibrary()">📥 İçe Aktar</button>
+</div>
+<input type="file" id="libraryImportFile" accept=".json" class="hidden" onchange="handleImportFile(event)">
+</div>
 
-      <div id="pane-contour" class="hidden">
-        <h2>Dikdörtgen Kontur</h2>
-        <div class="row">
-          <div><label>Genişlik</label><input type="number" id="cntX" value="100" inputmode="decimal"></div>
-          <div><label>Boy</label><input type="number" id="cntY" value="60" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Derinlik</label><input type="number" id="cntZ" value="10" inputmode="decimal"></div>
-          <div><label>Kesici Çap</label><input type="number" id="cntTool" value="12" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Katman</label><input type="number" id="cntLayer" value="2" inputmode="decimal"></div>
-          <div><label>Merkez X</label><input type="number" id="cntCx" value="0" inputmode="decimal"></div>
-        </div>
-        <label>Merkez Y</label>
-        <input type="number" id="cntCy" value="0" inputmode="decimal">
-        <label>Kompanzasyon</label>
-        <select id="cntComp">
-          <option value="G41">G41 Sol (Climb)</option>
-          <option value="G42">G42 Sağ</option>
-          <option value="none">Yok</option>
-        </select>
-      </div>
+<div class="tab-pane" id="tab-sim">
+<div id="canvasWrap">
+<canvas id="canvas"></canvas>
+<div class="view-btns">
+<button onclick="setView('iso')">ISO</button>
+<button onclick="setView('top')">Üst</button>
+<button onclick="setView('front')">Ön</button>
+<button onclick="setView('side')">Yan</button>
+<button onclick="fitView()">Fit</button>
+</div>
+</div>
+<div class="ba-toggle">
+<button id="btnBefore" class="active" onclick="setBA('before')">📥 Öncesi</button>
+<button id="btnAfter" onclick="setBA('after')">📤 Sonrası</button>
+</div>
+<div class="info-panel" id="infoPanel">
+<div class="kv"><span class="k">Ham madde:</span><span class="v" id="ipStock">-</span></div>
+<div class="kv"><span class="k">WCS:</span><span class="v" id="ipWcs">-</span></div>
+<div class="kv"><span class="k">Tool path:</span><span class="v" id="ipPath">-</span></div>
+<div class="kv"><span class="k">Tahmini süre:</span><span class="v" id="ipTime">-</span></div>
+</div>
+<p class="info">Öncesi: sadece ham madde · Sonrası: işlenmiş parça (basit gösterim)</p>
+</div>
 
-      <div id="pane-circle" class="hidden">
-        <h2>Daire Cep</h2>
-        <div class="row">
-          <div><label>Daire Çap</label><input type="number" id="cirD" value="60" inputmode="decimal"></div>
-          <div><label>Derinlik</label><input type="number" id="cirZ" value="10" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Kesici Çap</label><input type="number" id="cirTool" value="12" inputmode="decimal"></div>
-          <div><label>Katman</label><input type="number" id="cirLayer" value="2" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Merkez X</label><input type="number" id="cirCx" value="0" inputmode="decimal"></div>
-          <div><label>Merkez Y</label><input type="number" id="cirCy" value="0" inputmode="decimal"></div>
-        </div>
-      </div>
+<div class="tab-pane" id="tab-ballmill">
+<h2>🏀 Ballmill (Küre Uçlu)</h2>
+<label>Yüzey Tipi</label>
+<select id="bmSurface">
+<option value="sphere">Küre (Sphere)</option>
+<option value="dome">Kubbe (Dome)</option>
+<option value="cone">Koni (Cone)</option>
+<option value="wave">Dalga (Wave)</option>
+<option value="vgroove">V-Oluk (V-Groove)</option>
+<option value="plane">Düz Eğimli</option>
+</select>
+<div class="row" style="margin-top:10px;">
+<div><label>Genişlik X (mm)</label><input type="number" id="bmX" value="100" inputmode="decimal"></div>
+<div><label>Boy Y (mm)</label><input type="number" id="bmY" value="100" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Yükseklik Z (mm)</label><input type="number" id="bmZ" value="30" inputmode="decimal"></div>
+<div><label>Ballmill Çap (mm)</label><input type="number" id="bmTool" value="6" step="0.1" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Stepover (mm)</label><input type="number" id="bmStep" value="1" step="0.1" inputmode="decimal"></div>
+<div><label>Feed (mm/dk)</label><input type="number" id="bmFeed" value="400" inputmode="numeric"></div>
+</div>
+<div class="row">
+<div><label>Spindle (S)</label><input type="number" id="bmSpindle" value="8000" inputmode="numeric"></div>
+<div><label>Merkez X</label><input type="number" id="bmCx" value="0" inputmode="decimal"></div>
+</div>
+<div class="row">
+<div><label>Merkez Y</label><input type="number" id="bmCy" value="0" inputmode="decimal"></div>
+<div><label>Strateji</label>
+<select id="bmStrategy"><option value="raster">Raster (Zig-Zag)</option><option value="spiral">Spiral</option></select>
+</div>
+</div>
+<label style="display:flex;align-items:center;gap:10px;margin-top:14px;">
+<input type="checkbox" id="bmCuspCalc">
+<span>Cusp'tan stepover hesapla</span>
+</label>
+<div class="row">
+<div><label>Cusp (mm)</label><input type="number" id="bmCusp" value="0.01" step="0.001" inputmode="decimal"></div>
+<div><label>Hesaplanan step</label><input type="text" id="bmCalcStep" readonly value="-"></div>
+</div>
+<button class="primary" onclick="generateBallmill()">🚀 Ballmill G-Kod Üret</button>
+</div>
 
-      <div id="pane-slot" class="hidden">
-        <h2>Kanal</h2>
-        <div class="row">
-          <div><label>Uzunluk</label><input type="number" id="slotL" value="80" inputmode="decimal"></div>
-          <div><label>Genişlik</label><input type="number" id="slotW" value="12" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Derinlik</label><input type="number" id="slotZ" value="8" inputmode="decimal"></div>
-          <div><label>Kesici Çap</label><input type="number" id="slotTool" value="10" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Başlangıç X</label><input type="number" id="slotX" value="-40" inputmode="decimal"></div>
-          <div><label>Y</label><input type="number" id="slotY" value="0" inputmode="decimal"></div>
-        </div>
-        <label>Yön</label>
-        <select id="slotDir">
-          <option value="X">X ekseninde</option>
-          <option value="Y">Y ekseninde</option>
-        </select>
-      </div>
+<div class="tab-pane" id="tab-code">
+<h2>📄 Üretilen G-Kod</h2>
+<pre id="gcode">// G-Kod üretmek için "Parametre" veya "Ballmill" sekmesinden üret butonuna bas...</pre>
+<div class="btn-row">
+<button class="secondary" onclick="copyGcode()">📋 Kopyala</button>
+<button class="secondary" onclick="downloadGcode()">💾 İndir</button>
+</div>
+<button class="secondary" onclick="shareGcode()">📤 Paylaş</button>
+</div>
 
-      <div id="pane-dxf" class="hidden">
-        <h2>DXF Kontur Frezeleme</h2>
-        <label>DXF Dosyası Seç</label>
-        <input type="file" id="dxfFile" accept=".dxf">
-        <div id="dxfStatus" class="dxf-status">Dosya bekleniyor...</div>
-        <div class="row" style="margin-top:12px;">
-          <div><label>Derinlik</label><input type="number" id="dxfZ" value="5" inputmode="decimal"></div>
-          <div><label>Katman</label><input type="number" id="dxfLayer" value="2" inputmode="decimal"></div>
-        </div>
-        <div class="row">
-          <div><label>Kesici Çap</label><input type="number" id="dxfTool" value="6" inputmode="decimal"></div>
-          <div><label>Ölçek</label><input type="number" id="dxfScale" value="1" step="0.1" inputmode="decimal"></div>
-        </div>
-        <label>Kompanzasyon</label>
-        <select id="dxfComp">
-          <option value="G41">G41 Sol</option>
-          <option value="G42">G42 Sağ</option>
-          <option value="none">Yok</option>
-        </select>
-        <label style="display:flex;align-items:center;gap:10px;margin-top:14px;">
-          <input type="checkbox" id="dxfOffset" checked>
-          <span>Konturu sıfıra taşı</span>
-        </label>
-      </div>
-
-      <button class="primary" onclick="generate()">🚀 G-Kod Üret</button>
-    </div>
-
-    <!-- ================= TAKIM ================= -->
-    <div class="tab-pane" id="tab-tools">
-      <h2>Takım Kütüphanesi</h2>
-      <div id="toolList"></div>
-      <button class="secondary" onclick="showAddTool()">+ Yeni Takım Ekle</button>
-      <button class="secondary danger" onclick="clearTools()">Tümünü Sil</button>
-
-      <div id="addToolForm" class="hidden" style="margin-top:14px;padding:14px;background:#1a1a28;border-radius:10px;">
-        <h2 style="margin-top:0;">Yeni Takım</h2>
-        <label>Ad</label>
-        <input id="newToolName" placeholder="örn: Ø12 Düz Freze">
-        <div class="row" style="margin-top:10px;">
-          <div><label>Çap (mm)</label><input type="number" id="newToolDia" value="12" step="0.1" inputmode="decimal"></div>
-          <div><label>Tip</label>
-            <select id="newToolType">
-              <option value="flat">Düz Freze</option>
-              <option value="ball">Küre (Ballmill)</option>
-              <option value="drill">Matkap</option>
-              <option value="tap">Kılavuz</option>
-            </select>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="primary" onclick="addTool()" style="margin:0;">Kaydet</button>
-          <button class="secondary" onclick="hideAddTool()" style="margin:0;">İptal</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= KÜTÜPHANE ================= -->
-    <div class="tab-pane" id="tab-library">
-      <h2>📚 Program Kütüphanesi</h2>
-      <label>İş Adı</label>
-      <input type="text" id="saveJobName" placeholder="örn: Flanş Ø100 6 delik">
-      <label>Not (opsiyonel)</label>
-      <textarea id="saveJobNote" rows="2" placeholder="Takım, malzeme, özel uyarılar..."></textarea>
-      <button class="primary" onclick="saveToLibrary()">💾 Mevcut Ayarları Kaydet</button
+</div>
+</div>
+<div id="toast"></div>
