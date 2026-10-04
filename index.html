@@ -1440,6 +1440,32 @@ function footer(L) {
 }
 
 function generate() {
+  alert('TEST 1: generate başladı');
+  const L = [];
+  toolpaths = [];
+  updateStockFromInputs();
+  header(L);
+  alert('TEST 2: header bitti, op=' + currentOp);
+  try {
+    switch (currentOp) {
+      case 'drill':   genDrill(L);   break;
+      case 'tap':     genTap(L);     break;
+      case 'pocket':  genPocket(L);  break;
+      case 'face':    genFace(L);    break;
+      case 'contour': genContour(L); break;
+      case 'circle':  genCircle(L);  break;
+      case 'slot':    genSlot(L);     break;
+      case 'dxf':     genDXF(L);     break;
+    }
+  } catch (err) { 
+    alert('TEST HATA: ' + err.message);
+    L.push('(HATA: ' + err.message + ')'); 
+  }
+  alert('TEST 3: switch bitti, L.length=' + L.length);
+  footer(L);
+  $('gcode').textContent = L.join('\n');
+  ...
+}
   const L = [];
   toolpaths = [];
   updateStockFromInputs();
