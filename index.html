@@ -737,7 +737,13 @@ ctx = canvas ? canvas.getContext('2d') : null;
 function resizeCanvas() {
   if (!canvas || !canvas.parentElement) return;
   const rect = canvas.parentElement.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) return;
+  if (rect.width === 0 || rect.height === 0) {
+  canvas.width = 800 * devicePixelRatio;
+  canvas.height = 500 * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  draw();
+  return;
+}
   canvas.width = rect.width * devicePixelRatio;
   canvas.height = rect.height * devicePixelRatio;
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
