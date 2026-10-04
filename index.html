@@ -400,7 +400,278 @@ input[type=file]::-webkit-file-upload-button{background:#4fc3f7;color:#111;borde
 </div>
 <button class="primary" onclick="generateBallmill()">🚀 Ballmill G-Kod Üret</button>
 </div>
+<div class="tab-pane" id="tab-help">
+  <h2>📖 Yardım & Dokümantasyon</h2>
+  
+  <input type="text" id="helpSearch" placeholder="🔍 Ara... (örn: G81, cep, stepover)" 
+         oninput="filterHelp()" style="margin-bottom:14px;">
+  
+  <div id="helpContent">
+    
+    <!-- HIZLI BAŞLANGIÇ -->
+    <div class="help-section" data-keywords="başlangıç hızlı kullanım adımlar">
+      <h3>🚀 Hızlı Başlangıç</h3>
+      <ol style="padding-left:20px;line-height:1.8;font-size:13px;">
+        <li><b>Parametre</b> sekmesinde: Düzlem (G17/G18/G19), Operasyon seç</li>
+        <li>İş sıfırını (WCS) ve ham madde ölçülerini gir</li>
+        <li>Takım no, spindle (S), feed (F) gir</li>
+        <li>Operasyon parametrelerini doldur</li>
+        <li><b>🚀 G-Kod Üret</b> butonuna bas</li>
+        <li><b>Görsel</b> sekmesinde öncesi/sonrası kontrol et</li>
+        <li><b>G-Kod</b> sekmesinden kopyala/indir</li>
+      </ol>
+    </div>
 
+    <!-- OPERASYONLAR -->
+    <div class="help-section" data-keywords="delik drill matkap g81 g83 g73">
+      <h3>🔵 Delik Delme</h3>
+      <p><b>Ne yapar:</b> Belirtilen merkezlere delik deler.</p>
+      <p><b>Parametreler:</b></p>
+      <ul>
+        <li><b>Çap:</b> Matkap çapı (mm)</li>
+        <li><b>Derinlik:</b> Delik derinliği (mm) — pozitif girin, sistem negatife çevirir</li>
+        <li><b>Merkezler:</b> Her satıra bir X,Y koordinatı</li>
+        <li><b>Çevrim:</b>
+          <ul>
+            <li><b>G81:</b> Standart delme — tek seferde iner</li>
+            <li><b>G83:</b> Kademeli (Peck) — Q kadar iner, geri çıkar, tekrar iner (derin delikler için)</li>
+            <li><b>G73:</b> Yüksek hızlı Peck — G83 gibi ama daha hızlı</li>
+          </ul>
+        </li>
+        <li><b>Q:</b> Her adımda inilecek miktar (mm) — sadece G83/G73</li>
+      </ul>
+    </div>
+
+    <div class="help-section" data-keywords="kılavuz tap g84 vida">
+      <h3>🔵 Kılavuz Çekme</h3>
+      <p><b>Ne yapar:</b> Deliklere diş açar (vida).</p>
+      <p><b>Parametreler:</b></p>
+      <ul>
+        <li><b>Çap:</b> Kılavuz çapı (örn: M8 için 8)</li>
+        <li><b>Adım:</b> Vida adımı (örn: M8×1.25 → 1.25)</li>
+        <li><b>Derinlik:</b> Diş uzunluğu (mm)</li>
+      </ul>
+      <p><b>Not:</b> Spindle hızı (S) ve ilerleme (F) otomatik hesaplanır: <code>F = S × adım</code></p>
+    </div>
+
+    <div class="help-section" data-keywords="cep pocket boşaltma frezeleme">
+      <h3>🟦 Dikdörtgen Cep</h3>
+      <p><b>aldNe yapar:</b> Dikdörtgen birır bölgeyi boşıraltır (talaş k).</p>
+      <p><b>Parametreler:</b></p>
+      <ul>
+        <li><b>Genişlik/Boy:</b> Cebin ölçüleri (mm)</li>
+        <li><b>Derinlik:</b> Toplam cep derinliği</li>
+        <li><b>Kesici Çap:</b> Freze çapı</li>
+        <li><b>Stepover %:</b> Yan adım oranı — %60 önerilir (hızlı), %40 (kaliteli)</li>
+        <li><b>Katman:</b> Her seferde inilecek Z miktarı (örn: 3mm)</li>
+        <li><b>Merkez:</b> Cebin merkez koordinatı</li>
+      </ul>
+    </div>
+
+    <div class="help-section" data-keywords="yüzey face frezeleme">
+      <h3>🟦 Yüzey Frezeleme</h3>
+      <p><b>Ne yapar:</b> Bir yüzeyi düzleştirir (yüz alma).</p>
+      <p><b>Parametreler:</b></p>
+      <ul>
+        <li><b>Genişlik/Boy:</b> İşlenecek alan</li>
+        <li><b>Kesici Çap:</b> Yüzey freze çapı</li>
+        <li><b>Stepover %:</b> %70-80 önerilir</li>
+        <li><b>Z Seviye:</b> İşleme derinliği</li>
+        <li><b>Başlangıç X/Y:</b> Başlangıç köşesi</li>
+      </ul>
+    </div>
+
+    <div class="help-section" data-keywords="kontur contour dikdörtgen çevre g41 g42">
+      <h3>🟩 Dikdörtgen Kontur</h3>
+      <p><b>Ne yapar:</b> Dikdörtgenin dış çevresini frezeler.</p>
+      <p><b>Parametreler:</b></p>
+      <ul>
+        <li><b>Genişlik/Boy/Derinlik:</b> Kontur ölçüleri</li>
+        <li><b>Katman:</b> Her seferde inilecek Z</li>
+        <li><b>Kompanzasyon:</b>
+          <ul>
+            <li><b>G41 Sol:</b> Climb milling (kaliteli yüzey)</li>
+            <li><b>G42 Sağ:</b> Conventional milling</li>
+            <li><b>Yok:</b> Direkt takım merkezi</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="help-section" data-keywords="daire circle cep dairesel">
+      <h3>🟦 Daire Cep</h3>
+      <p><b>Ne yapar:</b> Dairesel bir cebi boşaltır (helisel giriş).</p>
+      <p><b>Parametreler:</b> Çap, derinlik, kesici çap, katman, merkez.</p>
+    </div>
+
+    <div class="help-section" data-keywords="kanal slot oluk">
+      <h3>🟦 Kanal (Slot)</h3>
+      <p><b>Ne yapar:</b> Düz bir kanal açar.</p>
+      <p><b>Parametreler:</b> Uzunluk, genişlik, derinlik, başlangıç, yön (X/Y).</p>
+    </div>
+
+    <div class="help-section" data-keywords="dxf autocad çizim kontur">
+      <h3>🟩 DXF Kontur</h3>
+      <p><b>Ne yapar:</b> AutoCAD DXF dosyasındaki çizimleri frezeler.</p>
+      <p><b>Desteklenen:</b> LINE, LWPOLYLINE, POLYLINE, CIRCLE, ARC, SPLINE</p>
+      <p><b>Parametreler:</b></p>
+      <ul>
+        <li><b>Derinlik:</b> İşleme derinliği</li>
+        <li><b>Katman:</b> Z katmanı</li>
+        <li><b>Kesici Çap:</b> Freze çapı</li>
+        <li><b>Ölçek:</b> DXF ölçeklendirme (örn: 0.5 → yarı boyut)</li>
+        <li><b>Kompanzasyon:</b> G41/G42/Yok</li>
+        <li><b>Konturu sıfıra taşı:</b> DXF'in minimum köşesini (0,0) yapar</li>
+      </ul>
+    </div>
+
+    <div class="help-section" data-keywords="ballmill küre uçlu 3d yüzey">
+      <h3>🏀 Ballmill (Küre Uçlu)</h3>
+      <p><b>Ne yapar:</b> 3D yüzey işleme (küre, kubbe, koni, dalga).</p>
+      <p><b>Parametreler:</b></p>
+      <ul>
+        <li><b>Yüzey Tipi:</b> Küre / Kubbe / Koni / Dalga / V-Oluk / Düz Eğimli</li>
+        <li><b>Genişlik/Boy/Yükseklik:</b> 3D yüzey ölçüleri</li>
+        <li><b>Ballmill Çap:</b> Küre uçlu freze çapı</li>
+        <li><b>Stepover:</b> Yan adım (mm) — küçük = kaliteli</li>
+        <li><b>Cusp:</b> Tırtık yüksekliği (mm) — 0.01 önerilir</li>
+        <li><b>Cusp'tan stepover hesapla:</b> Formül ile otomatik</li>
+        <li><b>Strateji:</b> Raster (paralel) / Spiral (dairesel)</li>
+      </ul>
+      <p><b>Cusp Formülü:</b> <code>stepover = 2 × √(2 × R × cusp − cusp²)</code></p>
+    </div>
+
+    <!-- GENEL PARAMETRELER -->
+    <div class="help-section" data-keywords="wcs g54 g55 iş koordinat sıfır">
+      <h3>⚙️ İş Koordinatı (WCS)</h3>
+      <p><b>G54-G59:</b> Fanuc'un 6 farklı iş sıfırı. Her biri farklı bir sıfır noktası.</p>
+      <p><b>Kullanım:</b> Bir tezgahta birden fazla iş varsa her birine farklı WCS atanır.</p>
+    </div>
+
+    <div class="help-section" data-keywords="spindle devir hız s feed ilerleme f">
+      <h3>⚙️ Spindle (S) ve Feed (F)</h3>
+      <ul>
+        <li><b>S:</b> Spindle hızı (dev/dk)</li>
+        <li><b>F:</b> İlerleme hızı (mm/dk)</li>
+        <li><b>Formül (torna):</b> F = S × adım (diş açmada otomatik)</li>
+        <li><b>Öneri:</b> Alüminyum için S=2000-4000, F=200-500</li>
+        <li><b>Öneri:</b> Çelik için S=500-1500, F=100-300</li>
+      </ul>
+    </div>
+
+    <div class="help-section" data-keywords="güvenli z safe start başlangıç">
+      <h3>⚙️ Güvenli Z / Başlangıç Z</h3>
+      <ul>
+        <li><b>Güvenli Z:</b> Takım değişimi ve hızlı hareketlerde güvenli yükseklik (örn: 50mm)</li>
+        <li><b>Başlangıç Z:</b> İşleme başlamadan önceki Z seviyesi (örn: 5mm)</li>
+      </ul>
+    </div>
+
+    <div class="help-section" data-keywords="ham madde stock ölçü">
+      <h3>⚙️ Ham Madde (Stock)</h3>
+      <p>İş parçasının başlangıç ölçüleri. Görsel sekmesinde gri kutu olarak gösterilir.</p>
+      <ul>
+        <li><b>Genişlik X / Boy Y / Yükseklik Z:</b> Ölçüler (mm)</li>
+        <li><b>Merkez X/Y:</b> İş sıfırına göre ham maddenin merkezi</li>
+        <li><b>Üst Z:</b> Ham maddenin üst yüzeyinin Z seviyesi (genelde 0)</li>
+      </ul>
+    </div>
+
+    <div class="help-section" data-keywords="kompanzasyon g41 g42 g40 takım telafi">
+      <h3>⚙️ Takım Kompanzasyonu (G41/G42)</h3>
+      <ul>
+        <li><b>G41:</b> Sol kompanzasyon (Climb milling) — kaliteli yüzey</li>
+        <li><b>G42:</b> Sağ kompanzasyon (Conventional milling)</li>
+        <li><b>G40:</b> Kompanzasyon iptali</li>
+        <li><b>D offset:</b> Takım çapı offseti (makine hafızasında)</li>
+      </ul>
+    </div>
+
+    <!-- G-KOD ÇEVİRİMİ -->
+    <div class="help-section" data-keywords="g kod gcode fanuc çevrim">
+      <h3>📄 Fanuc G-Kod Çevrimleri</h3>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        <tr style="background:#1a1a28;">
+          <th style="padding:8px;text-align:left;border-bottom:1px solid #333;">Kod</th>
+          <th style="padding:8px;text-align:left;border-bottom:1px solid #333;">Açıklama</th>
+        </tr>
+        <tr><td style="padding:6px;">G00</td><td style="padding:6px;">Hızlı hareket</td></tr>
+        <tr><td style="padding:6px;">G01</td><td style="padding:6px;">Doğrusal interpolasyon</td></tr>
+        <tr><td style="padding:6px;">G02</td><td style="padding:6px;">Dairesel interpolasyon (CW)</td></tr>
+        <tr><td style="padding:6px;">G03</td><td style="padding:6px;">Dairesel interpolasyon (CCW)</td></tr>
+        <tr><td style="padding:6px;">G17</td><td style="padding:6px;">XY düzlemi</td></tr>
+        <tr><td style="padding:6px;">G18</td><td style="padding:6px;">ZX düzlemi</td></tr>
+        <tr><td style="padding:6px;">G19</td><td style="padding:6px;">YZ düzlemi</td></tr>
+        <tr><td style="padding:6px;">G21</td><td style="padding:6px;">Metrik ölçü</td></tr>
+        <tr><td style="padding:6px;">G28</td><td style="padding:6px;">Referans noktasına dönüş</td></tr>
+        <tr><td style="padding:6px;">G40</td><td style="padding:6px;">Kompanzasyon iptali</td></tr>
+        <tr><td style="padding:6px;">G41/G42</td><td style="padding:6px;">Sol/Sağ kompanzasyon</td></tr>
+        <tr><td style="padding:6px;">G43</td><td style="padding:6px;">Takım boyu kompanzasyonu</td></tr>
+        <tr><td style="padding:6px;">G54-G59</td><td style="padding:6px;">İş koordinat sistemleri</td></tr>
+        <tr><td style="padding:6px;">G73</td><td style="padding:6px;">Yüksek hızlı peck delme</td></tr>
+        <tr><td style="padding:6px;">G80</td><td style="padding:6px;">Çevrim iptali</td></tr>
+        <tr><td style="padding:6px;">G81</td><td style="padding:6px;">Standart delme</td></tr>
+        <tr><td style="padding:6px;">G83</td><td style="padding:6px;">Kademeli delme (Peck)</td></tr>
+        <tr><td style="padding:6px;">G84</td><td style="padding:6px;">Kılavuz çekme (Rijit)</td></tr>
+        <tr><td style="padding:6px;">G90</td><td style="padding:6px;">Mutlak koordinat</td></tr>
+        <tr><td style="padding:6px;">G91</td><td style="padding:6px;">Artımlı koordinat</td></tr>
+        <tr><td style="padding:6px;">M03</td><td style="padding:6px;">Spindle saat yönü (CW)</td></tr>
+        <tr><td style="padding:6px;">M05</td><td style="padding:6px;">Spindle durdur</td></tr>
+        <tr><td style="padding:6px;">M06</td><td style="padding:6px;">Takım değiştir</td></tr>
+        <tr><td style="padding:6px;">M08</td><td style="padding:6px;">Soğutma aç</td></tr>
+        <tr><td style="padding:6px;">M09</td><td style="padding:6px;">Soğutma kapat</td></tr>
+        <tr><td style="padding:6px;">M29</td><td style="padding:6px;">Rijit kılavuz modu</td></tr>
+        <tr><td style="padding:6px;">M30</td><td style="padding:6px;">Program sonu</td></tr>
+      </table>
+    </div>
+
+    <!-- İPUÇLARI -->
+    <div class="help-section" data-keywords="ipucu öneri tavsiye kalite">
+      <h3>💡 İpuçları</h3>
+      <ul>
+        <li><b>Görsel kontrol:</b> Her zaman "Sonrası" modunda kontrol edin</li>
+        <li><b>Güvenli Z:</b> Mutlaka ham maddenin üstünde olsun (örn: +50mm)</li>
+        <li><b>İlk parça:</b> Düşük feed override ile test edin</li>
+        <li><b>Alüminyum:</b> Yüksek S, yüksek F</li>
+        <li><b>Çelik:</b> Düşük S, düşük F, soğutma şart</li>
+        <li><b>Stepover:</b> %40-60 arası önerilir</li>
+        <li><b>Kılavuz:</b> F = S × adım (sistem otomatik hesaplar)</li>
+        <li><b>Derin delik:</b> G83 (Peck) kullanın</li>
+        <li><b>Kompanzasyon:</b> G41 (Climb) daha kaliteli yüzey verir</li>
+      </ul>
+    </div>
+
+    <!-- KISAYOLLAR -->
+    <div class="help-section" data-keywords="program kütüphanesi kaydet yükle">
+      <h3>📚 Program Kütüphanesi</h3>
+      <p>Kullandığınız ayarları kaydedin, sonra tek tıkla yükleyin.</p>
+      <ul>
+        <li><b>Kaydet:</b> İsim verin → "💾 Mevcut Ayarları Kaydet"</li>
+        <li><b>Yükle:</b> Listeden "Yükle" butonuna bas</li>
+        <li><b>Sil:</b> "Sil" butonu (onay ister)</li>
+        <li><b>Dışa Aktar:</b> JSON dosyası indir (yedek)</li>
+        <li><b>İçe Aktar:</b> JSON dosyası yükle</li>
+      </ul>
+      <p><b>Not:</b> Kayıtlar telefonunuzda (tarayıcı hafızası) saklanır.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function filterHelp() {
+  const q = ($('helpSearch').value || '').toLowerCase().trim();
+  const sections = document.querySelectorAll('#helpContent .help-section');
+  if (!q) {
+    sections.forEach(s => s.style.display = '');
+    return;
+  }
+  sections.forEach(s => {
+    const text = (s.textContent + ' ' + (s.dataset.keywords || '')).toLowerCase();
+    s.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+</script>
 <div class="tab-pane" id="tab-code">
 <h2>📄 Üretilen G-Kod</h2>
 <pre id="gcode">// G-Kod üretmek için "Parametre" veya "Ballmill" sekmesinden üret butonuna bas...</pre>
