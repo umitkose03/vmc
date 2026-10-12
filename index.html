@@ -1473,8 +1473,6 @@ function generate() {
 }
 
 function genDrill(L) {
- 
-function genDrill(L) {
   const holes = parseHoles($('drillHoles').value);
   if (!holes.length) throw new Error('Delik yok');
   const depth = num('drillDepth'), R = num('startZ'), Z = -Math.abs(depth);
