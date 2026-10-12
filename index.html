@@ -1458,9 +1458,21 @@ function generate() {
       case 'dxf':     genDXF(L);     break;
     }
   } catch (err) { 
-    alert('TEST HATA: ' + err.message);
     L.push('(HATA: ' + err.message + ')'); 
   }
+  footer(L);
+  $('gcode').textContent = L.join('\n');
+  updateInfoPanel();
+  setTimeout(() => {
+    resizeCanvas();
+    setBA('after');
+    const s = document.querySelector('.tab-btn[data-tab="sim"]');
+    if (s) s.click();
+  }, 200);
+  toast('✓ ' + toolpaths.length + ' hareket');
+}
+
+function genDrill(L) {
  
 function genDrill(L) {
   const holes = parseHoles($('drillHoles').value);
