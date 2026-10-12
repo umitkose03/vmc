@@ -1461,39 +1461,7 @@ function generate() {
     alert('TEST HATA: ' + err.message);
     L.push('(HATA: ' + err.message + ')'); 
   }
-  alert('TEST 3: switch bitti, L.length=' + L.length);
-  footer(L);
-  $('gcode').textContent = L.join('\n');
-  ...
-}
-  const L = [];
-  toolpaths = [];
-  updateStockFromInputs();
-  header(L);
-  try {
-    switch (currentOp) {
-      case 'drill':   genDrill(L);   break;
-      case 'tap':     genTap(L);     break;
-      case 'pocket':  genPocket(L);  break;
-      case 'face':    genFace(L);    break;
-      case 'contour': genContour(L); break;
-      case 'circle':  genCircle(L);  break;
-      case 'slot':    genSlot(L);     break;
-      case 'dxf':     genDXF(L);     break;
-    }
-  } catch (err) { L.push('(HATA: ' + err.message + ')'); }
-  footer(L);
-  $('gcode').textContent = L.join('\n');
-  updateInfoPanel();
-  setTimeout(() => {
-    resizeCanvas();
-    setBA('after');
-    const s = document.querySelector('.tab-btn[data-tab="sim"]');
-    if (s) s.click();
-  }, 200);
-  toast('✓ ' + toolpaths.length + ' hareket');
-}
-
+ 
 function genDrill(L) {
   const holes = parseHoles($('drillHoles').value);
   if (!holes.length) throw new Error('Delik yok');
